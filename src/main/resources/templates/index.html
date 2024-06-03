@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" th:href="@{css//index_style.css}">
+    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap" th:href="@{css//index_style.css}">
+    <title>SHH Book</title>
+    <script>
+        function closePopup() {
+            var popup = document.getElementById("post");
+            popup.style.visibility = "hidden";
+            popup.style.opacity = '0';
+        }
+        function openPopup() {
+            var popup = document.getElementById("post");
+            popup.style.visibility = "visible";
+            popup.style.opacity = '1';
+        }
+    </script>
+</head>
+<body>
+
+    <div class="head-container">
+        <p th:text="'Cześć, ' + ${user} + ' :D'"></p>
+
+        <h1>Smart Hotel & Hostels</h1>
+        <div class="buttons-container">
+            <form>
+                <button type="button" onclick="openPopup()">Wstaw post</button>
+            </form>
+
+            <form th:action="@{/logout}">
+                <button type="submit">Wyloguj się</button>
+            </form>
+        </div>
+    </div>
+
+    <div th:each="i : ${#numbers.sequence(0, 2)}">
+        <div class="row-of-3">
+            <div class="post" th:each="post, index : ${db_posts}" th:if="${index.index >= i*3 && index.index < (i+1)*3}">
+                <p th:text="${post.username}"></p>
+                <h2 th:text="${post.title}"></h2>
+                <p th:text="${post.description}"></p>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="popup" id="post">
+        <div class="popup-content">
+            <h2>Utwórz wpis</h2>
+            <form th:action="@{/post}" method="post" th:modelAttribute="posts">
+                <input type="text" name="title" placeholder="Tytuł" required>
+                <textarea name="description" rows="15" placeholder="Co nowego?" required></textarea>
+                <button type="submit">Utwórz</button>
+                <button type="button" onclick="closePopup()">Zamknij</button></a>
+            </form>
+        </div>
+    </div>
+
+
+</body>
+</html>
