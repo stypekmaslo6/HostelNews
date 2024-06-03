@@ -148,4 +148,14 @@ button:focus {
     transform:scale(1.1);
 }
 
+.post h2 {
+    text-align: center;
+}
+
+.post p {
+    margin-top: 10px;
+    font-size: 20px;
+    font-weight: 400;
+}
+
 
