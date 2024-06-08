@@ -6,8 +6,6 @@ import com.shh.shhbook.model.Users;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
@@ -18,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import java.util.Collections;
 import java.util.List;
 
-@SpringBootApplication(exclude = { DataSourceAutoConfiguration.class })
+
 @Controller
 public class ControllerClass {
 
@@ -27,15 +25,32 @@ public class ControllerClass {
     @Autowired
     private PostsRepository postsRepository;
     // strona poczatkowa - logowanie
-    @RequestMapping(value="/")
+    @RequestMapping(value={"/", "/search"}, method = RequestMethod.GET)
     public String session(HttpServletRequest request, ModelMap model) {
 
-        List<Posts> postsList = postsRepository.findAll();
-        Collections.reverse(postsList);
-        model.addAttribute("db_posts", postsList);
+        //  jezeli bylo wyszukiwanie, to wyswietlamy posty wyszukane
+        if (request.getRequestURI().equals("/search"))
+        {
+            if (request.getMethod().equals("GET")) {
+                List<Posts> postsList = postsRepository.findByDescriptionContaining(request.getParameter("search_field"));
+                Collections.reverse(postsList);
+                model.addAttribute("db_posts", postsList);
+            }
+        }
+
+        // w przeciwnym wypadku (strona glowna) wyswietlamy wszystkie
+        else {
+            List<Posts> postsList = postsRepository.findAll();
+            Collections.reverse(postsList);
+            model.addAttribute("db_posts", postsList);
+        }
+
         HttpSession session = request.getSession(false);
         if (session != null) {
             model.addAttribute("user", session.getAttribute("user"));
+            String sql = "SELECT ID FROM users WHERE username = ?";
+            Integer userPermission = jdbcTemplate.queryForObject(sql, new Object[]{session.getAttribute("user")}, Integer.class);
+            model.addAttribute("can_post", userPermission);
             return "index";
         }
         return "login";
