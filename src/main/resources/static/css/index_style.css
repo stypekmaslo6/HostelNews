@@ -11,16 +11,22 @@
     display: none;
 }
 
-/* Hide scrollbar for IE, Edge and Firefox */
 * {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 
 body {
     background-color: #faf8f4;
     justify-content: center;
     align-items: center;
+}
+
+hr {
+    border: 0;
+    height: 0;
+    border-top: 1px solid rgba(204, 204, 204, 1);
+    border-bottom: 1px solid rgba(204, 204, 204, 1);
 }
 
 .head-container {
@@ -176,24 +182,25 @@ button:focus {
 }
 
 .popup-modal {
-    display: none; /* Hidden by default */
-    position: fixed; /* Stay in place */
-    z-index: 1; /* Sit on top */
+    display: none;
+    position: fixed;
+    z-index: 1;
     left: 0;
     top: 0;
-    width: 100%; /* Full width */
-    height: 100%; /* Full height */
-    overflow: auto; /* Enable scroll if needed */
-    background-color: rgb(0,0,0); /* Fallback color */
-    background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgb(0,0,0);
+    background-color: rgba(0,0,0,0.4);
 }
 
 .post-popup-content {
     background-color: #fefefe;
-    margin: 15% auto; /* 15% from the top and centered */
+    margin: 15% auto;
     padding: 20px;
     border: 1px solid #888;
-    width: 80%; /* Could be more or less, depending on screen size */
+    width: 40%;
+    border-radius: 8px;
 }
 
 .post-popup-content h2 {
@@ -207,3 +214,51 @@ button:focus {
     font-weight: 400;
 }
 
+.post-popup-content textarea {
+    width: 80%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    resize: none;
+    display: inline-block;
+}
+
+.comment-creator {
+    width: 100%;
+}
+
+.comment-creator form {
+    align-items: stretch;
+    justify-content: space-between;
+}
+
+.comment-creator textarea {
+    width: 100%;
+    resize: none;
+}
+
+.comment-creator textarea:focus {
+    outline: none;
+    -webkit-box-shadow: inset 8px 8px 24px -24px rgba(66, 68, 90, 1);
+    -moz-box-shadow: inset 8px 8px 24px -24px rgba(66, 68, 90, 1);
+    box-shadow: inset 8px 8px 24px -24px rgba(66, 68, 90, 1);
+}
+
+#comment-submit {
+    display: inline-block;
+    margin-bottom: -10px;
+    width: 100%;
+    border: none;
+    background-color: #da4167;
+    transition: background-color 0.3s ease-in-out;
+    padding: 10px;
+}
+
+#comment-submit:hover {
+    background-color: #b73250;
+}
+
+#comment-submit:focus {
+    outline: none;
+}

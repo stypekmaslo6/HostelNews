@@ -20,10 +20,12 @@
             var username = postElement.getAttribute('data-username');
             var title = postElement.getAttribute('data-title');
             var description = postElement.getAttribute('data-description');
+            var postId = postElement.getAttribute('data-post-id');
 
             document.getElementById('popup-username').innerText = username;
             document.getElementById('popup-title').innerText = title;
             document.getElementById('popup-description').innerText = description;
+            document.getElementById('popup-post-id').value = postId;
 
             var modal = document.getElementById('post-popup');
             modal.style.display = "block";
@@ -74,7 +76,7 @@
     <div th:each="i : ${#numbers.sequence(0, #lists.size(db_posts) - 1)}">
         <div class="row-of-3">
             <div class="post" th:each="post, index : ${db_posts}"
-                 th:attr="data-username=${post.username}, data-title=${post.title}, data-description=${post.description}"
+                 th:attr="data-username=${post.username}, data-title=${post.title}, data-description=${post.description}, data-post-id=${post.id}"
                  th:id="'post-' + ${index.index}"
                  onclick="openPostPopup(this)"
                  th:if="${index.index >= i * 3 && index.index < (i + 1) * 3}">
@@ -90,6 +92,14 @@
             <p id="popup-username"></p>
             <h2 id="popup-title"></h2>
             <p id="popup-description"></p>
+            <div class="comment-creator">
+                <form th:action="@{/comment}" method="post" th:modelAttribute="comments">
+                    <input type="hidden" id="popup-post-id" name="post_id">
+                    <textarea name="comment_content" rows="6" placeholder="Dodaj komentarz..."></textarea>
+                    <button type="submit" id="comment-submit">Opublikuj</button>
+                </form>
+            </div>
+            <hr>
         </div>
     </div>
 

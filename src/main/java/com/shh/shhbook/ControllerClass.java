@@ -3,6 +3,7 @@ package com.shh.shhbook;
 import com.shh.shhbook.model.Posts;
 import com.shh.shhbook.repository.PostsRepository;
 import com.shh.shhbook.model.Users;
+import com.shh.shhbook.model.Comments;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +13,7 @@ import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.Collections;
 import java.util.List;
@@ -97,6 +99,23 @@ public class ControllerClass {
             if (inserted == 0)
             {
                 model.addAttribute("error", "Nie udało się dodać posta.");
+            }
+        }
+        return "redirect:/";
+    }
+
+    @RequestMapping(value="/comment", method = RequestMethod.POST)
+    public String comment(final HttpServletRequest request,
+                          @RequestParam("comment_content") String commentContent,
+                          @RequestParam("post_id") int postId,
+                          ModelMap model)
+    {
+        if (request.getMethod().equals("POST")) {
+            String sql = "INSERT INTO comments (post_id, comment_content, user) VALUES (?, ?, ?)";
+            int inserted = jdbcTemplate.update(sql, postId, commentContent, request.getSession().getAttribute("user"));
+            if (inserted == 0)
+            {
+                model.addAttribute("error", "Nie udało się dodać komentarza.");
             }
         }
         return "redirect:/";
