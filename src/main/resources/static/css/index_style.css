@@ -226,6 +226,9 @@ button:focus {
 
 .comment-creator {
     width: 100%;
+    border-top: 1px solid #ccc;
+    margin-top: 20px;
+    margin-bottom: 10px;
 }
 
 .comment-creator form {
@@ -261,4 +264,39 @@ button:focus {
 
 #comment-submit:focus {
     outline: none;
+}
+
+.comments-container {
+    border-top: 1px solid #ccc;
+    padding-top: 10px;
+}
+
+.comment {
+    padding: 10px;
+    border-bottom: 1px solid #ccc;
+}
+
+.comment h1 {
+    margin-bottom: 5px;
+    font-size: 20px;
+}
+
+.comment p {
+    font-size: 15px;
+}
+
+.comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.comment-user {
+    margin: 0;
+}
+
+.comment-timestamp {
+    margin: 0;
+    font-size: 0.9em;
+    color: grey;
 }

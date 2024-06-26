@@ -1,31 +1,32 @@
 package com.shh.shhbook;
 
 import com.shh.shhbook.model.Posts;
+import com.shh.shhbook.repository.CommentsRepository;
 import com.shh.shhbook.repository.PostsRepository;
 import com.shh.shhbook.model.Users;
-import com.shh.shhbook.model.Comments;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-
+import org.springframework.web.bind.annotation.*;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
 
 
 @Controller
-public class ControllerClass {
+public class ControllerClass<Map> {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
     @Autowired
     private PostsRepository postsRepository;
+    @Autowired
+    private CommentsRepository commentsRepository;
     // strona poczatkowa - logowanie
     @RequestMapping(value={"/", "/search"}, method = RequestMethod.GET)
     public String session(HttpServletRequest request, ModelMap model) {
@@ -94,8 +95,10 @@ public class ControllerClass {
                        ModelMap model)
     {
         if (request.getMethod().equals("POST")) {
-            String sql = "INSERT INTO posts (username, title, description) VALUES (?, ?, ?)";
-            int inserted = jdbcTemplate.update(sql, request.getSession().getAttribute("user"), post.getTitle(), post.getDescription());
+            Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+            Timestamp timestamp = Timestamp.from(now);
+            String sql = "INSERT INTO posts (username, title, description, created_at) VALUES (?, ?, ?, ?)";
+            int inserted = jdbcTemplate.update(sql, request.getSession().getAttribute("user"), post.getTitle(), post.getDescription(), timestamp);
             if (inserted == 0)
             {
                 model.addAttribute("error", "Nie udało się dodać posta.");
@@ -111,13 +114,22 @@ public class ControllerClass {
                           ModelMap model)
     {
         if (request.getMethod().equals("POST")) {
-            String sql = "INSERT INTO comments (post_id, comment_content, user) VALUES (?, ?, ?)";
-            int inserted = jdbcTemplate.update(sql, postId, commentContent, request.getSession().getAttribute("user"));
+            Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+            Timestamp timestamp = Timestamp.from(now);
+            String sql = "INSERT INTO comments (post_id, comment_content, user, created_at) VALUES (?, ?, ?, ?)";
+            int inserted = jdbcTemplate.update(sql, postId, commentContent, request.getSession().getAttribute("user"), timestamp);
             if (inserted == 0)
             {
                 model.addAttribute("error", "Nie udało się dodać komentarza.");
             }
         }
         return "redirect:/";
+    }
+
+    @RequestMapping(value="/comments/{postId}", method = RequestMethod.GET)
+    @ResponseBody
+    public List<Map> getComments(@PathVariable("postId") int postId) {
+        String sql = "SELECT user, comment_content, created_at FROM comments WHERE post_id = ? ORDER BY comment_id DESC";
+        return (List<Map>) jdbcTemplate.queryForList(sql, postId);
     }
 }

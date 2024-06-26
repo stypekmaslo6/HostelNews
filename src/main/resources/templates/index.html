@@ -27,6 +27,39 @@
             document.getElementById('popup-description').innerText = description;
             document.getElementById('popup-post-id').value = postId;
 
+            fetch(`/comments/${postId}`)
+                .then(response => response.json())
+                .then(comments => {
+                    var commentsContainer = document.getElementById('popup-comments');
+                    commentsContainer.innerHTML = '';
+                    comments.forEach(comment => {
+                        var commentElement = document.createElement('div');
+                        commentElement.classList.add('comment');
+
+                        var headerElement = document.createElement('div');
+                        headerElement.classList.add('comment-header');
+
+                        var userElement = document.createElement('h1');
+                        userElement.classList.add('comment-user');
+                        userElement.innerText = comment.user;
+
+                        var timestampElement = document.createElement('span');
+                        timestampElement.classList.add('comment-timestamp');
+                        timestampElement.innerText = new Date(comment.created_at).toLocaleString();
+
+                        var contentElement = document.createElement('p');
+                        contentElement.classList.add('comment-content');
+                        contentElement.innerText = comment.comment_content;
+
+                        headerElement.appendChild(userElement);
+                        headerElement.appendChild(timestampElement);
+                        commentElement.appendChild(headerElement);
+                        commentElement.appendChild(contentElement);
+                        commentsContainer.appendChild(commentElement);
+                    });
+                });
+
+
             var modal = document.getElementById('post-popup');
             modal.style.display = "block";
         }
@@ -99,7 +132,7 @@
                     <button type="submit" id="comment-submit">Opublikuj</button>
                 </form>
             </div>
-            <hr>
+            <div id="popup-comments" class="comments-container"></div>
         </div>
     </div>
 
