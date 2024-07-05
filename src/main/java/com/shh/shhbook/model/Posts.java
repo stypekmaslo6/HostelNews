@@ -19,6 +19,7 @@ public class Posts {
     private String username;
     private String title;
     private String description;
+    private String files_path;
     private Timestamp created_at;
 
     public void setTitle(String title) {

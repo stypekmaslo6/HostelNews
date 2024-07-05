@@ -300,3 +300,25 @@ button:focus {
     font-size: 0.9em;
     color: grey;
 }
+
+#popup-images {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 5px;
+}
+
+#popup-images img {
+    width: 200px;
+    height: 200px;
+    border-radius: 5px;
+    object-fit: cover;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+#popup-images img:hover {
+    object-fit: contain;
+    position: relative;
+    transform: scale(2);
+}

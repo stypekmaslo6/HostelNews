@@ -4,23 +4,36 @@ import com.shh.shhbook.model.Posts;
 import com.shh.shhbook.repository.CommentsRepository;
 import com.shh.shhbook.repository.PostsRepository;
 import com.shh.shhbook.model.Users;
+import com.shh.shhbook.service.FtpService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Collections;
-import java.util.List;
-
+import java.util.*;
 
 @Controller
 public class ControllerClass<Map> {
-
+    private final FtpService ftpService;
+    @Autowired
+    public ControllerClass(FtpService ftpService) {
+        this.ftpService = ftpService;
+    }
     @Autowired
     private JdbcTemplate jdbcTemplate;
     @Autowired
@@ -92,15 +105,20 @@ public class ControllerClass<Map> {
     @RequestMapping(value="/post", method = RequestMethod.POST)
     public String post(final HttpServletRequest request,
                        @ModelAttribute("posts") Posts post,
-                       ModelMap model)
-    {
+                       @RequestParam("files") List<MultipartFile> files,
+                       ModelMap model) {
         if (request.getMethod().equals("POST")) {
             Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
             Timestamp timestamp = Timestamp.from(now);
-            String sql = "INSERT INTO posts (username, title, description, created_at) VALUES (?, ?, ?, ?)";
-            int inserted = jdbcTemplate.update(sql, request.getSession().getAttribute("user"), post.getTitle(), post.getDescription(), timestamp);
-            if (inserted == 0)
-            {
+            String sql = "SELECT MAX(ID) FROM posts";
+            Long lastPostId = jdbcTemplate.queryForObject(sql, Long.class);
+            if (lastPostId == null) lastPostId = 0L;
+            List<String> filePaths = ftpService.uploadFilesToFTP(files, lastPostId + 1);
+
+            sql = "INSERT INTO posts (username, title, description, files_path, created_at) VALUES (?, ?, ?, ?, ?)";
+            String filesCSV = String.join(",", filePaths);
+            int inserted = jdbcTemplate.update(sql, request.getSession().getAttribute("user"), post.getTitle(), post.getDescription(), filesCSV, timestamp);
+            if (inserted == 0) {
                 model.addAttribute("error", "Nie udało się dodać posta.");
             }
         }
@@ -131,5 +149,43 @@ public class ControllerClass<Map> {
     public List<Map> getComments(@PathVariable("postId") int postId) {
         String sql = "SELECT user, comment_content, created_at FROM comments WHERE post_id = ? ORDER BY comment_id DESC";
         return (List<Map>) jdbcTemplate.queryForList(sql, postId);
+    }
+
+    @RequestMapping(value="/files/{postId}", method = RequestMethod.GET)
+    @ResponseBody
+    public List<String> getFilePaths(@PathVariable("postId") int postId) {
+        String sql = "SELECT files_path FROM posts WHERE ID = ?";
+        String filesCSV = jdbcTemplate.queryForObject(sql, new Object[]{postId}, String.class);
+
+        List<String> filePaths = new ArrayList<>();
+        if (filesCSV != null && !filesCSV.isEmpty()) {
+            filePaths = Arrays.asList(filesCSV.split(","));
+        }
+
+        return filePaths;
+    }
+
+    @RequestMapping(value = "/download/{postId}/{fileName}", method = RequestMethod.GET)
+    public ResponseEntity<byte[]> downloadFile(@PathVariable("postId") Long postId, @PathVariable("fileName") String fileName) {
+        String remoteFilePath = "uploads/" + postId + "/" + fileName;
+        File file = ftpService.downloadFileFromFTP(remoteFilePath);
+
+        if (file == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
+        byte[] fileContent;
+        try (InputStream inputStream = new FileInputStream(file)) {
+            fileContent = inputStream.readAllBytes();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        headers.setContentDispositionFormData(fileName, fileName);
+
+        return new ResponseEntity<>(fileContent, headers, HttpStatus.OK);
     }
 }

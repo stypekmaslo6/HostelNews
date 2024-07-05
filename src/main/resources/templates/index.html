@@ -58,8 +58,19 @@
                         commentsContainer.appendChild(commentElement);
                     });
                 });
+            fetch(`/files/${postId}`)
+                .then(response => response.json())
+                .then(filePaths => {
+                    var imagesContainer = document.getElementById('popup-images');
+                    imagesContainer.innerHTML = '';
+                    filePaths.forEach(filePath => {
+                        var fileName = filePath.split('/').pop();
+                        var imgElement = document.createElement('img');
+                        imgElement.src = `/download/${postId}/${fileName}`;
+                        imagesContainer.appendChild(imgElement);
 
-
+                    });
+                });
             var modal = document.getElementById('post-popup');
             modal.style.display = "block";
         }
@@ -79,7 +90,6 @@
                 closePopup();
             }
         }
-
     </script>
 </head>
 <body>
@@ -125,6 +135,7 @@
             <p id="popup-username"></p>
             <h2 id="popup-title"></h2>
             <p id="popup-description"></p>
+            <div id="popup-images"></div>
             <div class="comment-creator">
                 <form th:action="@{/comment}" method="post" th:modelAttribute="comments">
                     <input type="hidden" id="popup-post-id" name="post_id">
@@ -139,15 +150,20 @@
     <div class="popup" id="post">
         <div class="popup-content">
             <h2>Utwórz wpis</h2>
-            <form th:action="@{/post}" method="post" th:modelAttribute="posts">
+            <form th:action="@{/post}" method="post" th:modelAttribute="posts" enctype="multipart/form-data">
                 <input type="text" name="title" placeholder="Tytuł" required>
                 <textarea name="description" rows="15" placeholder="Co nowego?" required></textarea>
+                <input type="file" class="multimedia" name="files" accept="image/*, video/*" multiple>
                 <button type="submit">Utwórz</button>
                 <button type="button" onclick="closePopup()">Zamknij</button>
             </form>
         </div>
     </div>
 
+    <div id="image-modal">
+        <span id="image-modal-close-btn">&times;</span>
+        <img id="full-size-image" src="" alt="Full Size Image">
+    </div>
 
 </body>
 </html>
