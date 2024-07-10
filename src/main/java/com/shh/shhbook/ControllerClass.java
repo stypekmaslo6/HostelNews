@@ -7,9 +7,11 @@ import com.shh.shhbook.model.Users;
 import com.shh.shhbook.service.FtpService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import org.apache.tomcat.util.http.fileupload.ByteArrayOutputStream;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -18,6 +20,8 @@ import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -26,6 +30,12 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.List;
+
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.PDFRenderer;
+
+import javax.imageio.ImageIO;
 
 @Controller
 public class ControllerClass<Map> {
@@ -166,26 +176,74 @@ public class ControllerClass<Map> {
     }
 
     @RequestMapping(value = "/download/{postId}/{fileName}", method = RequestMethod.GET)
-    public ResponseEntity<byte[]> downloadFile(@PathVariable("postId") Long postId, @PathVariable("fileName") String fileName) {
+    public ResponseEntity<Object> downloadFile(@PathVariable("postId") Long postId, @PathVariable("fileName") String fileName) {
         String remoteFilePath = "uploads/" + postId + "/" + fileName;
         File file = ftpService.downloadFileFromFTP(remoteFilePath);
 
         if (file == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            return ResponseEntity.notFound().build();
         }
 
         byte[] fileContent;
-        try (InputStream inputStream = new FileInputStream(file)) {
-            fileContent = inputStream.readAllBytes();
+        HttpHeaders headers = new HttpHeaders();
+
+        try {
+            if (fileName.toLowerCase().endsWith(".pdf")) {
+                PDDocument document = PDDocument.load(file);
+
+                List<BufferedImage> images = new ArrayList<>();
+
+                for (int page = 0; page < document.getNumberOfPages(); ++page) {
+                    PDFRenderer renderer = new PDFRenderer(document);
+                    BufferedImage image = renderer.renderImageWithDPI(page, 300);
+                    images.add(image);
+                }
+
+                document.close();
+
+                int width = images.get(0).getWidth();
+                int height = images.stream().mapToInt(BufferedImage::getHeight).sum();
+                BufferedImage combinedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+                Graphics2D g2 = combinedImage.createGraphics();
+                int y = 0;
+                for (BufferedImage image : images) {
+                    g2.drawImage(image, 0, y, null);
+                    y += image.getHeight();
+                }
+                g2.dispose();
+
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ImageIO.write(combinedImage, "jpg", baos);
+                byte[] imageBytes = baos.toByteArray();
+
+                headers.setContentType(MediaType.IMAGE_JPEG);
+                headers.setContentDispositionFormData("attachment", fileName.replace(".pdf", ".jpg"));
+
+                Resource resource = new ByteArrayResource(imageBytes);
+
+                return ResponseEntity.ok()
+                        .headers(headers)
+                        .body(resource);
+            } else {
+                try (InputStream inputStream = new FileInputStream(file)) {
+                    fileContent = inputStream.readAllBytes();
+                }
+            }
         } catch (IOException e) {
             e.printStackTrace();
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+            return ResponseEntity.internalServerError().build();
         }
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-        headers.setContentDispositionFormData(fileName, fileName);
+        headers.setContentDispositionFormData("attachment", fileName);
+        String contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        headers.setContentType(MediaType.parseMediaType(contentType));
 
-        return new ResponseEntity<>(fileContent, headers, HttpStatus.OK);
+        Resource resource = new ByteArrayResource(fileContent);
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(resource);
     }
+
+
 }

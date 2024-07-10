@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <link rel="stylesheet" th:href="@{css//index_style.css}">
     <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap" th:href="@{css//index_style.css}">
     <title>SHH Book</title>
@@ -63,12 +63,32 @@
                 .then(filePaths => {
                     var imagesContainer = document.getElementById('popup-images');
                     imagesContainer.innerHTML = '';
+
+                    var pdfContainer = document.getElementById('popup-pdfs');
+                    pdfContainer.innerHTML = '';
+
+                    var videoContainer = document.getElementById('popup-videos');
+                    videoContainer.innerHTML = '';
+
                     filePaths.forEach(filePath => {
                         var fileName = filePath.split('/').pop();
-                        var imgElement = document.createElement('img');
-                        imgElement.src = `/download/${postId}/${fileName}`;
-                        imagesContainer.appendChild(imgElement);
+                        var fileExtension = fileName.split('.').pop().toLowerCase();
+                        var fileUrl = `/download/${postId}/${fileName}`;
 
+                        if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExtension)) {
+                            var imgElement = document.createElement('img');
+                            imgElement.src = fileUrl;
+                            imagesContainer.appendChild(imgElement);
+                        } else if (fileExtension === 'pdf') {
+                            var pdfElement = document.createElement('img');
+                            pdfElement.src = fileUrl;
+                            pdfContainer.appendChild(pdfElement);
+                        } else if (['mp4', 'webm', 'ogg'].includes(fileExtension)) {
+                            var videoElement = document.createElement('video');
+                            videoElement.src = fileUrl;
+                            videoElement.controls = true;
+                            videoContainer.appendChild(videoElement);
+                        }
                     });
                 });
             var modal = document.getElementById('post-popup');
@@ -135,7 +155,9 @@
             <p id="popup-username"></p>
             <h2 id="popup-title"></h2>
             <p id="popup-description"></p>
+            <div id="popup-pdfs"></div>
             <div id="popup-images"></div>
+            <div id="popup-videos"></div>
             <div class="comment-creator">
                 <form th:action="@{/comment}" method="post" th:modelAttribute="comments">
                     <input type="hidden" id="popup-post-id" name="post_id">
@@ -158,11 +180,6 @@
                 <button type="button" onclick="closePopup()">Zamknij</button>
             </form>
         </div>
-    </div>
-
-    <div id="image-modal">
-        <span id="image-modal-close-btn">&times;</span>
-        <img id="full-size-image" src="" alt="Full Size Image">
     </div>
 
 </body>
