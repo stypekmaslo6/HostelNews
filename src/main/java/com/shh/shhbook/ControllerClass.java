@@ -1,7 +1,8 @@
 package com.shh.shhbook;
 
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.*;
 import com.shh.shhbook.model.Posts;
-import com.shh.shhbook.repository.CommentsRepository;
 import com.shh.shhbook.repository.PostsRepository;
 import com.shh.shhbook.model.Users;
 import com.shh.shhbook.service.FtpService;
@@ -9,23 +10,29 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.apache.tomcat.util.http.fileupload.ByteArrayOutputStream;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -39,17 +46,16 @@ import javax.imageio.ImageIO;
 
 @Controller
 public class ControllerClass<Map> {
-    private final FtpService ftpService;
     @Autowired
-    public ControllerClass(FtpService ftpService) {
-        this.ftpService = ftpService;
-    }
+    private AmazonS3 amazonS3;
+
+    @Value("${aws.s3.bucket.name}")
+    private String bucketName;
+    private final String LOCAL_FILE_PATH = "uploads/";
     @Autowired
     private JdbcTemplate jdbcTemplate;
     @Autowired
     private PostsRepository postsRepository;
-    @Autowired
-    private CommentsRepository commentsRepository;
     // strona poczatkowa - logowanie
     @RequestMapping(value={"/", "/search"}, method = RequestMethod.GET)
     public String session(HttpServletRequest request, ModelMap model) {
@@ -107,27 +113,61 @@ public class ControllerClass<Map> {
     @RequestMapping("/logout")
     public String logout(final HttpServletRequest request)
     {
-        request.getSession(false).invalidate();
+        if (request.getSession(false) != null)
+            request.getSession(false).invalidate();
         return "redirect:/";
     }
 
     // wstawianie posta
-    @RequestMapping(value="/post", method = RequestMethod.POST)
-    public String post(final HttpServletRequest request,
-                       @ModelAttribute("posts") Posts post,
-                       @RequestParam("files") List<MultipartFile> files,
-                       ModelMap model) {
+    @RequestMapping(value = "/post", method = RequestMethod.POST)
+    public String post(HttpServletRequest request, @ModelAttribute("posts") Posts post, @RequestParam("files") List<MultipartFile> files, ModelMap model) {
         if (request.getMethod().equals("POST")) {
             Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
             Timestamp timestamp = Timestamp.from(now);
+
             String sql = "SELECT MAX(ID) FROM posts";
             Long lastPostId = jdbcTemplate.queryForObject(sql, Long.class);
-            if (lastPostId == null) lastPostId = 0L;
-            List<String> filePaths = ftpService.uploadFilesToFTP(files, lastPostId + 1);
+            if (lastPostId == null) lastPostId = 1L;
+            else lastPostId += 1;
 
-            sql = "INSERT INTO posts (username, title, description, files_path, created_at) VALUES (?, ?, ?, ?, ?)";
-            String filesCSV = String.join(",", filePaths);
-            int inserted = jdbcTemplate.update(sql, request.getSession().getAttribute("user"), post.getTitle(), post.getDescription(), filesCSV, timestamp);
+            List<String> fileUrls = new ArrayList<>();
+            String thumbnailUrl = null;
+            for (MultipartFile file : files) {
+                if (!file.isEmpty()) {
+                    try {
+                        String fileName = StringUtils.cleanPath(file.getOriginalFilename());
+                        String fileKey = "uploads/" + lastPostId + "/" + fileName;
+
+                        InputStream inputStream = file.getInputStream();
+                        ObjectMetadata metadata = new ObjectMetadata();
+                        metadata.setContentLength(file.getSize());
+                        metadata.setContentType(file.getContentType());
+
+                        amazonS3.putObject(bucketName, fileKey, inputStream, metadata);
+                        amazonS3.setObjectAcl(bucketName, fileKey, CannedAccessControlList.Private);
+
+                        String fileUrl = amazonS3.getUrl(bucketName, fileKey).toString();
+                        fileUrls.add(fileUrl);
+
+                        if (thumbnailUrl == null) {
+                            if (fileName.toLowerCase().endsWith(".pdf")) {
+                                thumbnailUrl = createPdfThumbnail(fileKey);
+                            } else {
+                                thumbnailUrl = fileUrl;
+                            }
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        model.addAttribute("error", "Nie udało się zapisać pliku " + file.getOriginalFilename());
+                        return "redirect:/";
+                    }
+                }
+            }
+
+            String filesCSV = String.join(",", fileUrls);
+
+            sql = "INSERT INTO posts (username, title, description, show_desc, gallery_link, files_path, thumbnail_url, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            int inserted = jdbcTemplate.update(sql, request.getSession().getAttribute("user"), post.getTitle(), post.getDescription(), post.getShow_desc(), post.getGallery_link(), filesCSV, thumbnailUrl, timestamp);
             if (inserted == 0) {
                 model.addAttribute("error", "Nie udało się dodać posta.");
             }
@@ -175,75 +215,111 @@ public class ControllerClass<Map> {
         return filePaths;
     }
 
-    @RequestMapping(value = "/download/{postId}/{fileName}", method = RequestMethod.GET)
+    @GetMapping("/download/{postId}/{fileName:.+}")
     public ResponseEntity<Object> downloadFile(@PathVariable("postId") Long postId, @PathVariable("fileName") String fileName) {
-        String remoteFilePath = "uploads/" + postId + "/" + fileName;
-        File file = ftpService.downloadFileFromFTP(remoteFilePath);
-
-        if (file == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        byte[] fileContent;
-        HttpHeaders headers = new HttpHeaders();
+        String fileKey = "uploads/" + postId + "/" + fileName;
 
         try {
+            if (!amazonS3.doesObjectExist(bucketName, fileKey)) {
+                return ResponseEntity.notFound().build();
+            }
+
+            S3Object s3Object = amazonS3.getObject(new GetObjectRequest(bucketName, fileKey));
+            InputStream inputStream = s3Object.getObjectContent();
+
+            HttpHeaders headers = new HttpHeaders();
+
             if (fileName.toLowerCase().endsWith(".pdf")) {
-                PDDocument document = PDDocument.load(file);
+                List<BufferedImage> images = convertPdfToImages(inputStream);
 
-                List<BufferedImage> images = new ArrayList<>();
-
-                for (int page = 0; page < document.getNumberOfPages(); ++page) {
-                    PDFRenderer renderer = new PDFRenderer(document);
-                    BufferedImage image = renderer.renderImageWithDPI(page, 300);
-                    images.add(image);
+                if (images.isEmpty()) {
+                    return ResponseEntity.notFound().build();
                 }
 
-                document.close();
-
-                int width = images.get(0).getWidth();
-                int height = images.stream().mapToInt(BufferedImage::getHeight).sum();
-                BufferedImage combinedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-                Graphics2D g2 = combinedImage.createGraphics();
-                int y = 0;
-                for (BufferedImage image : images) {
-                    g2.drawImage(image, 0, y, null);
-                    y += image.getHeight();
-                }
-                g2.dispose();
-
+                BufferedImage combinedImage = combineImages(images);
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 ImageIO.write(combinedImage, "jpg", baos);
                 byte[] imageBytes = baos.toByteArray();
-
                 headers.setContentType(MediaType.IMAGE_JPEG);
                 headers.setContentDispositionFormData("attachment", fileName.replace(".pdf", ".jpg"));
-
                 Resource resource = new ByteArrayResource(imageBytes);
-
                 return ResponseEntity.ok()
                         .headers(headers)
                         .body(resource);
             } else {
-                try (InputStream inputStream = new FileInputStream(file)) {
-                    fileContent = inputStream.readAllBytes();
-                }
+                headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+                headers.setContentDispositionFormData("attachment", fileName);
+
+                Resource resource = new InputStreamResource(inputStream);
+
+                return ResponseEntity.ok()
+                        .headers(headers)
+                        .body(resource);
             }
+
+        } catch (AmazonS3Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.notFound().build();
         } catch (IOException e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().build();
         }
-
-        headers.setContentDispositionFormData("attachment", fileName);
-        String contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
-        headers.setContentType(MediaType.parseMediaType(contentType));
-
-        Resource resource = new ByteArrayResource(fileContent);
-
-        return ResponseEntity.ok()
-                .headers(headers)
-                .body(resource);
     }
 
 
+    private List<BufferedImage> convertPdfToImages(InputStream inputStream) throws IOException {
+        PDDocument document = PDDocument.load(inputStream);
+        PDFRenderer renderer = new PDFRenderer(document);
+
+        List<BufferedImage> images = new ArrayList<>();
+        for (int page = 0; page < document.getNumberOfPages(); ++page) {
+            BufferedImage image = renderer.renderImageWithDPI(page, 300);
+            images.add(image);
+        }
+
+        document.close();
+        return images;
+    }
+
+    private BufferedImage combineImages(List<BufferedImage> images) {
+        int totalHeight = images.stream().mapToInt(BufferedImage::getHeight).sum();
+        int maxWidth = images.stream().mapToInt(BufferedImage::getWidth).max().orElse(0);
+        BufferedImage combinedImage = new BufferedImage(maxWidth, totalHeight, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2d = combinedImage.createGraphics();
+        int currentY = 0;
+        for (BufferedImage image : images) {
+            g2d.drawImage(image, 0, currentY, null);
+            currentY += image.getHeight();
+        }
+        g2d.dispose();
+        return combinedImage;
+    }
+    private String createPdfThumbnail(String fileKey) {
+        try {
+            S3Object s3Object = amazonS3.getObject(new GetObjectRequest(bucketName, fileKey));
+            InputStream inputStream = s3Object.getObjectContent();
+
+            PDDocument document = PDDocument.load(inputStream);
+            PDFRenderer renderer = new PDFRenderer(document);
+            BufferedImage image = renderer.renderImageWithDPI(0, 300);
+            document.close();
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(image, "jpg", baos);
+            byte[] imageBytes = baos.toByteArray();
+
+            String thumbnailKey = fileKey.replace(".pdf", "_thumbnail.jpg");
+            ObjectMetadata metadata = new ObjectMetadata();
+            metadata.setContentLength(imageBytes.length);
+            metadata.setContentType("image/jpeg");
+
+            amazonS3.putObject(bucketName, thumbnailKey, new ByteArrayInputStream(imageBytes), metadata);
+            amazonS3.setObjectAcl(bucketName, thumbnailKey, CannedAccessControlList.Private);
+
+            return amazonS3.getUrl(bucketName, thumbnailKey).toString();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 }

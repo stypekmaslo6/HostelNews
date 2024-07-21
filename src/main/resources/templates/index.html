@@ -4,7 +4,7 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <link rel="stylesheet" th:href="@{css//index_style.css}">
     <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap" th:href="@{css//index_style.css}">
-    <title>SHH Book</title>
+    <title>Hostel News</title>
     <script>
         function closePopup() {
             var popup = document.getElementById("post");
@@ -19,13 +19,38 @@
         function openPostPopup(postElement) {
             var username = postElement.getAttribute('data-username');
             var title = postElement.getAttribute('data-title');
-            var description = postElement.getAttribute('data-description');
             var postId = postElement.getAttribute('data-post-id');
+            var createdAt = postElement.getAttribute('data-created-at');
+            var showDesc = postElement.getAttribute('data-show-desc');
+            var galleryLink = postElement.getAttribute('data-gallery-link')
 
             document.getElementById('popup-username').innerText = username;
             document.getElementById('popup-title').innerText = title;
-            document.getElementById('popup-description').innerText = description;
             document.getElementById('popup-post-id').value = postId;
+            document.getElementById('popup-post-created-at').innerText = new Date(createdAt).toLocaleString();
+            var descriptionElement = document.getElementById('popup-description');
+            if (showDesc) {
+                descriptionElement.style.display = 'block';
+                descriptionElement.innerText = postElement.getAttribute('data-description');
+            } else {
+                descriptionElement.style.display = 'none';
+            }
+
+            var linkElement = document.getElementById('popup-link');
+            linkElement.innerHTML = '';
+
+            if (galleryLink != null) {
+                var linkButton = document.createElement('button');
+                linkButton.classList.add('link-button');
+                if (!galleryLink.startsWith('http://') && !galleryLink.startsWith('https://')) {
+                    galleryLink = 'https://' + galleryLink;
+                }
+                linkButton.innerText = 'Zobacz zdjęcia!';
+                linkButton.onclick = function() {
+                    window.open(galleryLink, '_blank');
+                };
+                linkElement.appendChild(linkButton);
+            }
 
             fetch(`/comments/${postId}`)
                 .then(response => response.json())
@@ -61,37 +86,36 @@
             fetch(`/files/${postId}`)
                 .then(response => response.json())
                 .then(filePaths => {
-                    var imagesContainer = document.getElementById('popup-images');
-                    imagesContainer.innerHTML = '';
-
                     var pdfContainer = document.getElementById('popup-pdfs');
                     pdfContainer.innerHTML = '';
 
-                    var videoContainer = document.getElementById('popup-videos');
-                    videoContainer.innerHTML = '';
-
+                    var imgContainer = document.getElementById('popup-images');
+                    imgContainer.innerHTML = '';
                     filePaths.forEach(filePath => {
                         var fileName = filePath.split('/').pop();
                         var fileExtension = fileName.split('.').pop().toLowerCase();
                         var fileUrl = `/download/${postId}/${fileName}`;
 
-                        if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExtension)) {
+                        if (fileExtension === 'pdf') {
+                            fetch(fileUrl)
+                                .then(response => response.blob())
+                                .then(blob => {
+                                    var imageUrl = URL.createObjectURL(blob);
+                                    var pdfElement = document.createElement('img');
+                                    pdfElement.src = imageUrl;
+                                    pdfContainer.appendChild(pdfElement);
+                                });
+                        }
+                        else {
                             var imgElement = document.createElement('img');
-                            imgElement.src = fileUrl;
-                            imagesContainer.appendChild(imgElement);
-                        } else if (fileExtension === 'pdf') {
-                            var pdfElement = document.createElement('img');
-                            pdfElement.src = fileUrl;
-                            pdfContainer.appendChild(pdfElement);
-                        } else if (['mp4', 'webm', 'ogg'].includes(fileExtension)) {
-                            var videoElement = document.createElement('video');
-                            videoElement.src = fileUrl;
-                            videoElement.controls = true;
-                            videoContainer.appendChild(videoElement);
+                            imgElement.src = filePath;
+                            imgContainer.appendChild(imgElement);
                         }
                     });
                 });
+
             var modal = document.getElementById('post-popup');
+            modal.scrollTop = 0;
             modal.style.display = "block";
         }
 
@@ -110,14 +134,13 @@
                 closePopup();
             }
         }
+
     </script>
 </head>
 <body>
 
     <div class="head-container">
-        <p th:text="'Cześć, ' + ${user} + ' :D'"></p>
-
-        <h1>Smart Hotel & Hostels</h1>
+        <h1>Hostel News</h1>
         <div class="buttons-container">
 
             <form th:action="@{/search}">
@@ -136,28 +159,32 @@
         </div>
     </div>
 
-    <div th:each="i : ${#numbers.sequence(0, #lists.size(db_posts) - 1)}">
-        <div class="row-of-3">
-            <div class="post" th:each="post, index : ${db_posts}"
-                 th:attr="data-username=${post.username}, data-title=${post.title}, data-description=${post.description}, data-post-id=${post.id}"
-                 th:id="'post-' + ${index.index}"
-                 onclick="openPostPopup(this)"
-                 th:if="${index.index >= i * 3 && index.index < (i + 1) * 3}">
-                <p th:text="${post.username}"></p>
-                <h2 th:text="${post.title}"></h2>
-                <p th:text="${post.description}"></p>
-            </div>
+    <div class="background-overlay"></div>
+
+    <div class="posts-area">
+        <div th:each="post, index : ${db_posts}"
+             th:attr="data-username=${post.username}, data-title=${post.title}, data-description=${post.description}, data-show-desc=${post.show_desc}, data-gallery-link=${post.gallery_link}, data-post-id=${post.id}, data-created-at=${post.created_at}"
+             th:id="'post-' + ${index.index}"
+             class="post"
+             onclick="openPostPopup(this)">
+            <p th:text="${post.username}"></p>
+            <h2 th:text="${post.title}"></h2>
+            <img th:if="${post.thumbnail_url != null}" th:src="${post.thumbnail_url}" alt="thumbnail" class="thumbnail">
         </div>
     </div>
 
     <div id="post-popup" class="popup-modal">
         <div class="post-popup-content">
-            <p id="popup-username"></p>
-            <h2 id="popup-title"></h2>
-            <p id="popup-description"></p>
+            <span class="close-button" onclick="closePostPopup()">&times;</span>
+            <div class="post-header">
+                <h1 id="popup-username" class="post-user"></h1>
+                <h2 id="popup-title"></h2>
+                <span id="popup-post-created-at" class="post-timestamp"></span>
+            </div>
+            <h3 id="popup-description" style="display: none;"></h3>
             <div id="popup-pdfs"></div>
             <div id="popup-images"></div>
-            <div id="popup-videos"></div>
+            <div id="popup-link"></div>
             <div class="comment-creator">
                 <form th:action="@{/comment}" method="post" th:modelAttribute="comments">
                     <input type="hidden" id="popup-post-id" name="post_id">
@@ -173,9 +200,11 @@
         <div class="popup-content">
             <h2>Utwórz wpis</h2>
             <form th:action="@{/post}" method="post" th:modelAttribute="posts" enctype="multipart/form-data">
-                <input type="text" name="title" placeholder="Tytuł" required>
-                <textarea name="description" rows="15" placeholder="Co nowego?" required></textarea>
-                <input type="file" class="multimedia" name="files" accept="image/*, video/*" multiple>
+                <input type="text" name="title" placeholder="Tytuł" autocomplete="off" required>
+                <textarea name="description" rows="15" placeholder="Krótki opis/Słowa kluczowe" autocomplete="off" required></textarea>
+                <label for="show_desc" class="checkbox-container"><input type="checkbox" name="show_desc" id="show_desc">Wyświetlać opis?</label>
+                <input type="text" name="gallery_link" placeholder="Link do galerii" autocomplete="off">
+                <input type="file" class="multimedia" name="files" accept="image/*, video/*, .pdf" multiple>
                 <button type="submit">Utwórz</button>
                 <button type="button" onclick="closePopup()">Zamknij</button>
             </form>

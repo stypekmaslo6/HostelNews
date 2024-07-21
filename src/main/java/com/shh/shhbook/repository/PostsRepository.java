@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface PostsRepository extends JpaRepository<Posts, String> {
     List<Posts> findByDescriptionContaining(String description);
+    void deleteById(Long id);
 }

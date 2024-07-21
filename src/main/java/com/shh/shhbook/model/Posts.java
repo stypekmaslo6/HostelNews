@@ -19,7 +19,10 @@ public class Posts {
     private String username;
     private String title;
     private String description;
+    private Boolean show_desc;
+    private String gallery_link;
     private String files_path;
+    private String thumbnail_url;
     private Timestamp created_at;
 
     public void setTitle(String title) {
@@ -37,9 +40,10 @@ public class Posts {
         this.title = title;
         this.description = description;
     }
-
     public void setId(Long id) {
         this.id = id;
     }
-
+    public void setCreated_at(Timestamp created_at) {
+        this.created_at = created_at;
+    }
 }
