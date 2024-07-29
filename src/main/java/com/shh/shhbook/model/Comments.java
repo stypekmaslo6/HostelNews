@@ -1,7 +1,7 @@
 package com.shh.shhbook.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -12,26 +12,21 @@ import java.sql.Timestamp;
 @NoArgsConstructor
 public class Comments {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long comment_id;
-    private Long post_id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "post_id", nullable = false)
+    @JsonBackReference
+    private Posts post;
     private String comment_content;
+    private String user;
     private Timestamp created_at;
-    public Comments(Long comment_id, Long post_id, String comment_content, Timestamp created_at) {
-        this.comment_id = comment_id;
-        this.post_id = post_id;
+
+    public Comments(Posts post, String comment_content, Timestamp created_at, String user) {
+        this.post = post;
         this.comment_content = comment_content;
         this.created_at = created_at;
-    }
-
-    public void setComment_id(Long comment_id) {
-        this.comment_id = comment_id;
-    }
-
-    public void setPost_id(Long post_id) {
-        this.post_id = post_id;
-    }
-
-    public void setComment_content(String comment_content) {
-        this.comment_content = comment_content;
+        this.user = user;
     }
 }

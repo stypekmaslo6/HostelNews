@@ -1,12 +1,15 @@
 package com.shh.shhbook.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.sql.Timestamp;
+import java.util.List;
 
 @Getter
 @Entity
@@ -15,7 +18,9 @@ import java.sql.Timestamp;
 public class Posts {
     @Getter
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String username;
     private String title;
     private String description;
@@ -25,25 +30,13 @@ public class Posts {
     private String thumbnail_url;
     private Timestamp created_at;
 
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-    public void setDescription(String description) {
-        this.description = description;
-    }
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @JacksonXmlElementWrapper(localName = "comments")
+    @JacksonXmlProperty(localName = "comment")
+    private List<Comments> comments;
 
     public Posts(String title, String description) {
         this.title = title;
         this.description = description;
-    }
-    public void setId(Long id) {
-        this.id = id;
-    }
-    public void setCreated_at(Timestamp created_at) {
-        this.created_at = created_at;
     }
 }

@@ -5,21 +5,12 @@ import com.amazonaws.services.s3.model.*;
 import com.shh.shhbook.model.Posts;
 import com.shh.shhbook.repository.PostsRepository;
 import com.shh.shhbook.model.Users;
-import com.shh.shhbook.service.FtpService;
+import com.shh.shhbook.service.PostService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.apache.tomcat.util.http.fileupload.ByteArrayOutputStream;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.core.io.Resource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
@@ -30,9 +21,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -51,7 +39,6 @@ public class ControllerClass<Map> {
 
     @Value("${aws.s3.bucket.name}")
     private String bucketName;
-    private final String LOCAL_FILE_PATH = "uploads/";
     @Autowired
     private JdbcTemplate jdbcTemplate;
     @Autowired
@@ -91,8 +78,8 @@ public class ControllerClass<Map> {
     // zalogowanie sie i wejscie na strone glowna
     @RequestMapping(value = "/login", method = RequestMethod.POST)
     public String login(final HttpServletRequest request,
-                       @ModelAttribute("users") Users user,
-                       ModelMap model) {
+                        @ModelAttribute("users") Users user,
+                        ModelMap model) {
         if (request.getMethod().equals("POST")) {
             String sql = "SELECT COUNT(*) FROM users WHERE username = ? AND password = ?";
             int count = jdbcTemplate.queryForObject(sql, new Object[]{user.getUsername(), user.getPassword()}, Integer.class);
@@ -194,79 +181,6 @@ public class ControllerClass<Map> {
         return "redirect:/";
     }
 
-    @RequestMapping(value="/comments/{postId}", method = RequestMethod.GET)
-    @ResponseBody
-    public List<Map> getComments(@PathVariable("postId") int postId) {
-        String sql = "SELECT user, comment_content, created_at FROM comments WHERE post_id = ? ORDER BY comment_id DESC";
-        return (List<Map>) jdbcTemplate.queryForList(sql, postId);
-    }
-
-    @RequestMapping(value="/files/{postId}", method = RequestMethod.GET)
-    @ResponseBody
-    public List<String> getFilePaths(@PathVariable("postId") int postId) {
-        String sql = "SELECT files_path FROM posts WHERE ID = ?";
-        String filesCSV = jdbcTemplate.queryForObject(sql, new Object[]{postId}, String.class);
-
-        List<String> filePaths = new ArrayList<>();
-        if (filesCSV != null && !filesCSV.isEmpty()) {
-            filePaths = Arrays.asList(filesCSV.split(","));
-        }
-
-        return filePaths;
-    }
-
-    @GetMapping("/download/{postId}/{fileName:.+}")
-    public ResponseEntity<Object> downloadFile(@PathVariable("postId") Long postId, @PathVariable("fileName") String fileName) {
-        String fileKey = "uploads/" + postId + "/" + fileName;
-
-        try {
-            if (!amazonS3.doesObjectExist(bucketName, fileKey)) {
-                return ResponseEntity.notFound().build();
-            }
-
-            S3Object s3Object = amazonS3.getObject(new GetObjectRequest(bucketName, fileKey));
-            InputStream inputStream = s3Object.getObjectContent();
-
-            HttpHeaders headers = new HttpHeaders();
-
-            if (fileName.toLowerCase().endsWith(".pdf")) {
-                List<BufferedImage> images = convertPdfToImages(inputStream);
-
-                if (images.isEmpty()) {
-                    return ResponseEntity.notFound().build();
-                }
-
-                BufferedImage combinedImage = combineImages(images);
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                ImageIO.write(combinedImage, "jpg", baos);
-                byte[] imageBytes = baos.toByteArray();
-                headers.setContentType(MediaType.IMAGE_JPEG);
-                headers.setContentDispositionFormData("attachment", fileName.replace(".pdf", ".jpg"));
-                Resource resource = new ByteArrayResource(imageBytes);
-                return ResponseEntity.ok()
-                        .headers(headers)
-                        .body(resource);
-            } else {
-                headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-                headers.setContentDispositionFormData("attachment", fileName);
-
-                Resource resource = new InputStreamResource(inputStream);
-
-                return ResponseEntity.ok()
-                        .headers(headers)
-                        .body(resource);
-            }
-
-        } catch (AmazonS3Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.notFound().build();
-        } catch (IOException e) {
-            e.printStackTrace();
-            return ResponseEntity.internalServerError().build();
-        }
-    }
-
-
     private List<BufferedImage> convertPdfToImages(InputStream inputStream) throws IOException {
         PDDocument document = PDDocument.load(inputStream);
         PDFRenderer renderer = new PDFRenderer(document);
@@ -294,18 +208,17 @@ public class ControllerClass<Map> {
         g2d.dispose();
         return combinedImage;
     }
+
     private String createPdfThumbnail(String fileKey) {
         try {
             S3Object s3Object = amazonS3.getObject(new GetObjectRequest(bucketName, fileKey));
             InputStream inputStream = s3Object.getObjectContent();
 
-            PDDocument document = PDDocument.load(inputStream);
-            PDFRenderer renderer = new PDFRenderer(document);
-            BufferedImage image = renderer.renderImageWithDPI(0, 300);
-            document.close();
+            List<BufferedImage> images = convertPdfToImages(inputStream);
+            BufferedImage combinedImage = combineImages(images);
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(image, "jpg", baos);
+            ImageIO.write(combinedImage, "jpg", baos);
             byte[] imageBytes = baos.toByteArray();
 
             String thumbnailKey = fileKey.replace(".pdf", "_thumbnail.jpg");
@@ -321,5 +234,41 @@ public class ControllerClass<Map> {
             e.printStackTrace();
             return null;
         }
+    }
+
+    @Autowired
+    private PostService postService;
+    @PostMapping("/delete/{id}")
+    public String deletePost(@PathVariable("id") Long id) {
+        try {
+            List<String> keysToDelete = new ArrayList<>();
+
+            Long maxId = jdbcTemplate.queryForObject("SELECT MAX(id) FROM posts", Long.class);
+            if (maxId == null) {
+                maxId = 0L;
+            }
+
+            ListObjectsV2Result result = amazonS3.listObjectsV2(bucketName, "uploads/" + id);
+            for (S3ObjectSummary objectSummary : result.getObjectSummaries()) {
+                keysToDelete.add(objectSummary.getKey());
+            }
+
+            if (!keysToDelete.isEmpty()) {
+                DeleteObjectsRequest deleteObjectsRequest = new DeleteObjectsRequest(bucketName)
+                        .withKeys(keysToDelete.toArray(new String[0]));
+                amazonS3.deleteObjects(deleteObjectsRequest);
+            }
+
+            postService.deletePostById(id);
+
+            if (maxId.equals(id)) {
+                System.out.println("maxid=id");
+                String sql = "ALTER TABLE hostel_news.posts AUTO_INCREMENT=" + maxId;
+                jdbcTemplate.execute(sql);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "redirect:/";
     }
 }

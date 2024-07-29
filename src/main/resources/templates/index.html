@@ -4,7 +4,7 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <link rel="stylesheet" th:href="@{css//index_style.css}">
     <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap" th:href="@{css//index_style.css}">
-    <title>Hostel News</title>
+    <title>Smart News</title>
     <script>
         function closePopup() {
             var popup = document.getElementById("post");
@@ -15,134 +15,53 @@
             var popup = document.getElementById("post");
             popup.style.visibility = "visible"
             popup.style.opacity = '1';
-        }
-        function openPostPopup(postElement) {
-            var username = postElement.getAttribute('data-username');
-            var title = postElement.getAttribute('data-title');
-            var postId = postElement.getAttribute('data-post-id');
-            var createdAt = postElement.getAttribute('data-created-at');
-            var showDesc = postElement.getAttribute('data-show-desc');
-            var galleryLink = postElement.getAttribute('data-gallery-link')
-
-            document.getElementById('popup-username').innerText = username;
-            document.getElementById('popup-title').innerText = title;
-            document.getElementById('popup-post-id').value = postId;
-            document.getElementById('popup-post-created-at').innerText = new Date(createdAt).toLocaleString();
-            var descriptionElement = document.getElementById('popup-description');
-            if (showDesc) {
-                descriptionElement.style.display = 'block';
-                descriptionElement.innerText = postElement.getAttribute('data-description');
-            } else {
-                descriptionElement.style.display = 'none';
-            }
-
-            var linkElement = document.getElementById('popup-link');
-            linkElement.innerHTML = '';
-
-            if (galleryLink != null) {
-                var linkButton = document.createElement('button');
-                linkButton.classList.add('link-button');
-                if (!galleryLink.startsWith('http://') && !galleryLink.startsWith('https://')) {
-                    galleryLink = 'https://' + galleryLink;
-                }
-                linkButton.innerText = 'Zobacz zdjęcia!';
-                linkButton.onclick = function() {
-                    window.open(galleryLink, '_blank');
-                };
-                linkElement.appendChild(linkButton);
-            }
-
-            fetch(`/comments/${postId}`)
-                .then(response => response.json())
-                .then(comments => {
-                    var commentsContainer = document.getElementById('popup-comments');
-                    commentsContainer.innerHTML = '';
-                    comments.forEach(comment => {
-                        var commentElement = document.createElement('div');
-                        commentElement.classList.add('comment');
-
-                        var headerElement = document.createElement('div');
-                        headerElement.classList.add('comment-header');
-
-                        var userElement = document.createElement('h1');
-                        userElement.classList.add('comment-user');
-                        userElement.innerText = comment.user;
-
-                        var timestampElement = document.createElement('span');
-                        timestampElement.classList.add('comment-timestamp');
-                        timestampElement.innerText = new Date(comment.created_at).toLocaleString();
-
-                        var contentElement = document.createElement('p');
-                        contentElement.classList.add('comment-content');
-                        contentElement.innerText = comment.comment_content;
-
-                        headerElement.appendChild(userElement);
-                        headerElement.appendChild(timestampElement);
-                        commentElement.appendChild(headerElement);
-                        commentElement.appendChild(contentElement);
-                        commentsContainer.appendChild(commentElement);
-                    });
-                });
-            fetch(`/files/${postId}`)
-                .then(response => response.json())
-                .then(filePaths => {
-                    var pdfContainer = document.getElementById('popup-pdfs');
-                    pdfContainer.innerHTML = '';
-
-                    var imgContainer = document.getElementById('popup-images');
-                    imgContainer.innerHTML = '';
-                    filePaths.forEach(filePath => {
-                        var fileName = filePath.split('/').pop();
-                        var fileExtension = fileName.split('.').pop().toLowerCase();
-                        var fileUrl = `/download/${postId}/${fileName}`;
-
-                        if (fileExtension === 'pdf') {
-                            fetch(fileUrl)
-                                .then(response => response.blob())
-                                .then(blob => {
-                                    var imageUrl = URL.createObjectURL(blob);
-                                    var pdfElement = document.createElement('img');
-                                    pdfElement.src = imageUrl;
-                                    pdfContainer.appendChild(pdfElement);
-                                });
-                        }
-                        else {
-                            var imgElement = document.createElement('img');
-                            imgElement.src = filePath;
-                            imgContainer.appendChild(imgElement);
-                        }
-                    });
-                });
-
-            var modal = document.getElementById('post-popup');
-            modal.scrollTop = 0;
-            modal.style.display = "block";
-        }
-
-        function closePostPopup() {
-            var modal = document.getElementById('post-popup');
-            modal.style.display = "none";
+            console.log("hej1");
         }
 
         window.onclick = function(event) {
-            var modal = document.getElementById('post-popup');
-            if (event.target === modal) {
-                closePostPopup();
-            }
             var createPostPopup = document.getElementById('post');
             if (event.target === createPostPopup) {
                 closePopup();
             }
         }
 
+        document.addEventListener("DOMContentLoaded", function() {
+            function setupGalleryLink(buttonElement, galleryLink) {
+                if (!galleryLink.startsWith('http://') && !galleryLink.startsWith('https://')) {
+                    galleryLink = 'https://' + galleryLink;
+                }
+                buttonElement.innerText = 'Zobacz zdjęcia!';
+                buttonElement.onclick = function() {
+                    window.open(galleryLink, '_blank');
+                };
+            }
+
+            var buttons = document.querySelectorAll('.gallery-link button');
+            buttons.forEach(function(button) {
+                var galleryLink = button.getAttribute('data-gallery-link');
+                if (galleryLink) {
+                    setupGalleryLink(button, galleryLink);
+                }
+            });
+        });
+
+        function toggleComments(postId) {
+            var commentsContainer = document.getElementById('comments-' + postId);
+            if (commentsContainer.style.display === 'block') {
+                commentsContainer.style.display = 'none';
+                document.getElementById('comment-button-' + postId).innerText = "Pokaż komentarze";
+            } else {
+                commentsContainer.style.display = 'block';
+                document.getElementById('comment-button-' + postId).innerText = "Ukryj komentarze";
+            }
+        }
     </script>
 </head>
 <body>
 
     <div class="head-container">
-        <h1>Hostel News</h1>
+        <h1>Smart News</h1>
         <div class="buttons-container">
-
             <form th:action="@{/search}">
                 <label>
                     <input name="search_field" autocomplete="off" placeholder="Wyszukaj post...">
@@ -162,39 +81,56 @@
     <div class="background-overlay"></div>
 
     <div class="posts-area">
-        <div th:each="post, index : ${db_posts}"
-             th:attr="data-username=${post.username}, data-title=${post.title}, data-description=${post.description}, data-show-desc=${post.show_desc}, data-gallery-link=${post.gallery_link}, data-post-id=${post.id}, data-created-at=${post.created_at}"
-             th:id="'post-' + ${index.index}"
-             class="post"
-             onclick="openPostPopup(this)">
-            <p th:text="${post.username}"></p>
-            <h2 th:text="${post.title}"></h2>
-            <img th:if="${post.thumbnail_url != null}" th:src="${post.thumbnail_url}" alt="thumbnail" class="thumbnail">
+        <div th:each="post : ${db_posts}" class="post">
+            <!-- Naglowek -->
+            <div class="post-header">
+                <h1 class="post-user" th:text="${post.username}"></h1>
+                <h2 th:text="${post.title}"></h2>
+                <span class="post-timestamp" th:text="${post.created_at}"></span>
+            </div>
+            <!-- To co ma w sobie ogloszenie -->
+            <div class="post-description" th:if="${post.show_desc != null}">
+                <h3 th:text="${post.description}"></h3>
+            </div>
+
+            <div th:each="file : ${#strings.arraySplit(post.files_path, ',')}">
+                <img th:if="${file.endsWith('.pdf')}" th:src="${post.thumbnail_url}" alt="PDF Thumbnail">
+                <img th:if="${file.endsWith('.jpg') || file.endsWith('.png')}" th:src="${file}" alt="Image">
+            </div>
+
+            <div th:if="${post.gallery_link != null && !post.gallery_link.isEmpty()}" class="gallery-link">
+                <button th:id="|galleryButton-${post.id}|" th:data-gallery-link="${post.gallery_link}"></button>
+            </div>
+
+            <!-- Utworz komentarz -->
+            <div class="comment-creator">
+                <form action="/comment" method="post">
+                    <input type="hidden" name="post_id" th:value="${post.id}">
+                    <textarea name="comment_content" rows="6" placeholder="Dodaj komentarz..."></textarea>
+                    <button style='width: 100%;' type="submit" id="comment-submit">Opublikuj</button>
+                </form>
+            </div>
+
+            <!-- Pokaz komentarze -->
+            <button th:if="${post.comments.size() > 0}" th:attr="onclick=|toggleComments(${post.id})|" th:id="|comment-button-${post.id}|">Pokaż komentarze</button>
+
+            <!-- Komentarze -->
+            <div th:id="|comments-${post.id}|" class="comments-container" style="display: none;">
+                <div th:each="comment : ${post.comments}" class="comment">
+                    <div class="comment-header">
+                        <h1 class="comment-user" th:text="${comment.user}"></h1>
+                        <span class="comment-timestamp" th:text="${comment.created_at}"></span>
+                    </div>
+                    <p th:text="${comment.comment_content}"></p>
+                </div>
+            </div>
+            <!-- Usuwanie posta -->
+            <form th:if="${can_post == 1}" th:action="@{/delete/{id}(id=${post.id})}" method="post" style="display:inline; width: 100%;">
+                <button type="submit" class="delete-button" onclick="return confirm('Czy na pewno chcesz usunąć ogłoszenie?');">Usuń ogłoszenie</button>
+            </form>
         </div>
     </div>
 
-    <div id="post-popup" class="popup-modal">
-        <div class="post-popup-content">
-            <span class="close-button" onclick="closePostPopup()">&times;</span>
-            <div class="post-header">
-                <h1 id="popup-username" class="post-user"></h1>
-                <h2 id="popup-title"></h2>
-                <span id="popup-post-created-at" class="post-timestamp"></span>
-            </div>
-            <h3 id="popup-description" style="display: none;"></h3>
-            <div id="popup-pdfs"></div>
-            <div id="popup-images"></div>
-            <div id="popup-link"></div>
-            <div class="comment-creator">
-                <form th:action="@{/comment}" method="post" th:modelAttribute="comments">
-                    <input type="hidden" id="popup-post-id" name="post_id">
-                    <textarea name="comment_content" rows="6" placeholder="Dodaj komentarz..."></textarea>
-                    <button type="submit" id="comment-submit">Opublikuj</button>
-                </form>
-            </div>
-            <div id="popup-comments" class="comments-container"></div>
-        </div>
-    </div>
 
     <div class="popup" id="post">
         <div class="popup-content">
