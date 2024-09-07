@@ -28,7 +28,9 @@ public class Posts {
     private String gallery_link;
     private String files_path;
     private String thumbnail_url;
-    private Timestamp created_at;
+    @Column(name = "created_at")
+    private Timestamp createdAt;
+    private Integer like_count;
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     @JacksonXmlElementWrapper(localName = "comments")
@@ -38,5 +40,9 @@ public class Posts {
     public Posts(String title, String description) {
         this.title = title;
         this.description = description;
+    }
+
+    public Posts(Long postId) {
+        this.id = postId;
     }
 }

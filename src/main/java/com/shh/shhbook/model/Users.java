@@ -23,6 +23,10 @@ public class Users {
         this.password = password;
     }
 
+    public Users(String username) {
+        this.username = username;
+    }
+
     public void setUsername(String username) {
         this.username = username;
     }

@@ -1,11 +1,32 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <link rel="stylesheet" th:href="@{css//index_style.css}">
     <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap" th:href="@{css//index_style.css}">
     <title>Smart News</title>
     <script>
+        function toggleLike(postId) {
+            var icon = document.getElementById("like-icon-" + postId);
+            var likeCount = document.getElementById("like-count-" + postId);
+
+            fetch('/api/likes/toggle?postId=' + postId, {
+                method: 'POST'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    likeCount.textContent = data.likeCount;
+                    if (data.liked) {
+                        icon.classList.add("liked");
+                    } else {
+                        icon.classList.remove("liked");
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+
         function closePopup() {
             var popup = document.getElementById("post");
             popup.style.visibility = "hidden";
@@ -15,7 +36,24 @@
             var popup = document.getElementById("post");
             popup.style.visibility = "visible"
             popup.style.opacity = '1';
-            console.log("hej1");
+        }
+
+        function openEditPopup(postId) {
+            var form = document.getElementById('editPostForm');
+            var postIdInput = document.getElementById('postIdInput');
+
+            form.action = '/edit/' + postId;
+
+            postIdInput.value = postId;
+
+            document.getElementById('edit_post').style.visibility = 'visible';
+            document.getElementById('edit_post').style.opacity = '1';
+        }
+
+        function closeEditPopup() {
+            var popup = document.getElementById("edit_post");
+            popup.style.visibility = "hidden";
+            popup.style.opacity = '0';
         }
 
         window.onclick = function(event) {
@@ -68,6 +106,10 @@
                 </label>
             </form>
 
+            <form th:if="${can_post == 1}" th:action="@{/statistics}">
+                <button type="submit">Wygeneruj statystyki</button>
+            </form>
+
             <form th:if="${can_post == 1}">
                 <button type="button" onclick="openPopup()">Wstaw post</button>
             </form>
@@ -86,7 +128,7 @@
             <div class="post-header">
                 <h1 class="post-user" th:text="${post.username}"></h1>
                 <h2 th:text="${post.title}"></h2>
-                <span class="post-timestamp" th:text="${post.created_at}"></span>
+                <span class="post-timestamp" th:text="${post.createdAt}"></span>
             </div>
             <!-- To co ma w sobie ogloszenie -->
             <div class="post-description" th:if="${post.show_desc != null}">
@@ -104,15 +146,36 @@
 
             <!-- Utworz komentarz -->
             <div class="comment-creator">
-                <form action="/comment" method="post">
+                <form action="/comment" method="post" class="comment-form">
                     <input type="hidden" name="post_id" th:value="${post.id}">
-                    <textarea name="comment_content" rows="6" placeholder="Dodaj komentarz..."></textarea>
-                    <button style='width: 100%;' type="submit" id="comment-submit">Opublikuj</button>
+                    <textarea name="comment_content" rows="6" placeholder="Dodaj komentarz..." required></textarea>
+                    <div class="comment-buttons">
+                        <button type="submit" id="comment-submit">Opublikuj</button>
+                        <!-- Pokaz komentarze -->
+                        <button type="button" th:if="${post.comments.size() > 0}" th:attr="onclick=|toggleComments(${post.id})|" th:id="|comment-button-${post.id}|">Pokaż komentarze</button>
+                    </div>
                 </form>
-            </div>
 
-            <!-- Pokaz komentarze -->
-            <button th:if="${post.comments.size() > 0}" th:attr="onclick=|toggleComments(${post.id})|" th:id="|comment-button-${post.id}|">Pokaż komentarze</button>
+
+                <!-- Guziczek polubienia -->
+                <div class="like-container">
+                    <div class="like-button">
+                        <span th:if="${#lists.contains(likes_list, post.id)}"
+                              th:id="|like-icon-${post.id}|"
+                              th:class="'material-symbols-outlined liked'"
+                              th:attr="onclick=|toggleLike(${post.id})|">
+                                favorite
+                        </span>
+                        <span th:if="${!#lists.contains(likes_list, post.id)}"
+                              th:id="|like-icon-${post.id}|"
+                              th:class="'material-symbols-outlined'"
+                              th:attr="onclick=|toggleLike(${post.id})|">
+                                favorite
+                        </span>
+                        <div th:id="|like-count-${post.id}|" th:text="${post.like_count}"></div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Komentarze -->
             <div th:id="|comments-${post.id}|" class="comments-container" style="display: none;">
@@ -124,17 +187,35 @@
                     <p th:text="${comment.comment_content}"></p>
                 </div>
             </div>
+
+            <!-- Edycja posta -->
+            <form th:if="${can_post == 1}" style="display: inline; width: 100%">
+                <button type="button" class="delete-button" th:onclick="|openEditPopup(${post.id})|">Edytuj ogłoszenie</button>
+            </form>
+
             <!-- Usuwanie posta -->
-            <form th:if="${can_post == 1}" th:action="@{/delete/{id}(id=${post.id})}" method="post" style="display:inline; width: 100%;">
+            <form th:if="${can_post == 1}" th:action="@{/delete/{id}(id=${post.id})}" method="post" style="display: inline; width: 100%;">
                 <button type="submit" class="delete-button" onclick="return confirm('Czy na pewno chcesz usunąć ogłoszenie?');">Usuń ogłoszenie</button>
             </form>
         </div>
     </div>
 
+    <div class="pagination-container">
+        <ul class="pagination-list">
+            <li th:if="${page > 0}">
+                <a th:href="@{|/?page=${page - 1}&size=${size}|}" class="pagination-link">Poprzednia strona</a>
+            </li>
+            <li th:if="${page < totalPages - 1}">
+                <a th:href="@{|/?page=${page + 1}&size=${size}|}" class="pagination-link">Następna strona</a>
+            </li>
+        </ul>
+    </div>
+
+
 
     <div class="popup" id="post">
         <div class="popup-content">
-            <h2>Utwórz wpis</h2>
+            <h2>Utwórz ogłoszenie</h2>
             <form th:action="@{/post}" method="post" th:modelAttribute="posts" enctype="multipart/form-data">
                 <input type="text" name="title" placeholder="Tytuł" autocomplete="off" required>
                 <textarea name="description" rows="15" placeholder="Krótki opis/Słowa kluczowe" autocomplete="off" required></textarea>
@@ -143,6 +224,21 @@
                 <input type="file" class="multimedia" name="files" accept="image/*, video/*, .pdf" multiple>
                 <button type="submit">Utwórz</button>
                 <button type="button" onclick="closePopup()">Zamknij</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="popup" id="edit_post">
+        <div class="popup-content">
+            <h2>Edytuj ogłoszenie</h2>
+            <form method="post" th:modelAttribute="posts" id="editPostForm">
+                <input type="text" name="title" placeholder="Tytuł" autocomplete="off">
+                <textarea name="description" rows="15" placeholder="Krótki opis/Słowa kluczowe" autocomplete="off"></textarea>
+                <label for="show_desc" class="checkbox-container"><input type="checkbox" name="show_desc">Wyświetlać opis?</label>
+                <input type="text" name="gallery_link" placeholder="Link do galerii" autocomplete="off">
+                <button type="submit">Edytuj</button>
+                <button type="button" onclick="closeEditPopup()">Zamknij</button>
+                <input type="hidden" id="postIdInput" name="id">
             </form>
         </div>
     </div>

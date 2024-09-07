@@ -1,28 +1,46 @@
 package com.shh.shhbook;
 
+import com.itextpdf.io.font.constants.StandardFonts;
+import com.itextpdf.kernel.font.PdfFontFactory;
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.element.Table;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.*;
+import com.shh.shhbook.model.Likes;
+import com.shh.shhbook.model.LoginStatistics;
 import com.shh.shhbook.model.Posts;
+import com.shh.shhbook.repository.LikesRepository;
+import com.shh.shhbook.repository.LoginStatisticsRepository;
 import com.shh.shhbook.repository.PostsRepository;
 import com.shh.shhbook.model.Users;
+import com.shh.shhbook.response.LikeResponse;
+import com.shh.shhbook.service.LikesService;
 import com.shh.shhbook.service.PostService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.apache.tomcat.util.http.fileupload.ByteArrayOutputStream;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
+import java.time.LocalDate;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.List;
@@ -33,7 +51,7 @@ import org.apache.pdfbox.rendering.PDFRenderer;
 import javax.imageio.ImageIO;
 
 @Controller
-public class ControllerClass<Map> {
+public class ControllerClass {
     @Autowired
     private AmazonS3 amazonS3;
 
@@ -43,36 +61,58 @@ public class ControllerClass<Map> {
     private JdbcTemplate jdbcTemplate;
     @Autowired
     private PostsRepository postsRepository;
+    @Autowired
+    private LikesRepository likesRepository;
+    @Autowired
+    private LoginStatisticsRepository loginStatisticsRepository;
+    private void incrementLoginCount(int year, int month) {
+        String checkSql = "SELECT COUNT(*) FROM login_statistics WHERE year = ? AND month = ?";
+        int existingRecord = jdbcTemplate.queryForObject(checkSql, new Object[]{year, month}, Integer.class);
+
+        if (existingRecord > 0) {
+            String updateSql = "UPDATE login_statistics SET login_count = login_count + 1 WHERE year = ? AND month = ?";
+            jdbcTemplate.update(updateSql, year, month);
+        } else {
+            String insertSql = "INSERT INTO login_statistics (year, month, login_count) VALUES (?, ?, ?)";
+            jdbcTemplate.update(insertSql, year, month, 1);
+        }
+    }
+
     // strona poczatkowa - logowanie
     @RequestMapping(value={"/", "/search"}, method = RequestMethod.GET)
-    public String session(HttpServletRequest request, ModelMap model) {
+    public String session(HttpServletRequest request,
+                          ModelMap model,
+                          @RequestParam(value = "page", defaultValue = "0") int page,
+                          @RequestParam(value = "size", defaultValue = "12") int size) {
 
-        //  jezeli bylo wyszukiwanie, to wyswietlamy posty wyszukane
-        if (request.getRequestURI().equals("/search"))
-        {
-            if (request.getMethod().equals("GET")) {
-                List<Posts> postsList = postsRepository.findByDescriptionContaining(request.getParameter("search_field"));
-                Collections.reverse(postsList);
-                model.addAttribute("db_posts", postsList);
-            }
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        model.addAttribute("page", page);
+        model.addAttribute("size", size);
+
+        if (request.getRequestURI().equals("/search") && request.getMethod().equals("GET")) {
+            String searchField = request.getParameter("search_field");
+            Page<Posts> postsPage = postsRepository.findByDescriptionContainingOrTitleContaining(searchField, searchField, pageable);
+            model.addAttribute("db_posts", postsPage.getContent());
+            model.addAttribute("totalPages", postsPage.getTotalPages());
         }
-
-        // w przeciwnym wypadku (strona glowna) wyswietlamy wszystkie
         else {
-            List<Posts> postsList = postsRepository.findAll();
-            Collections.reverse(postsList);
-            model.addAttribute("db_posts", postsList);
+            Page<Posts> postsPage = postsRepository.findAll(pageable);
+            model.addAttribute("db_posts", postsPage.getContent());
+            model.addAttribute("totalPages", postsPage.getTotalPages());
         }
 
         HttpSession session = request.getSession(false);
         if (session != null) {
+            List<Long> likesList = likesRepository.findPostIdsByUsername(new Users((String) session.getAttribute("user")));
+            model.addAttribute("likes_list", likesList);
             model.addAttribute("user", session.getAttribute("user"));
+
             String sql = "SELECT ID FROM users WHERE username = ?";
             Integer userPermission = jdbcTemplate.queryForObject(sql, new Object[]{session.getAttribute("user")}, Integer.class);
             model.addAttribute("can_post", userPermission);
-            return "index";
         }
-        return "login";
+
+        return session != null ? "index" : "login";
     }
 
     // zalogowanie sie i wejscie na strone glowna
@@ -87,6 +127,13 @@ public class ControllerClass<Map> {
             if (count > 0) {
                 HttpSession session = request.getSession();
                 session.setAttribute("user", user.getUsername());
+
+                LocalDate currentDate = LocalDate.now();
+                int currentMonth = currentDate.getMonthValue();
+                int currentYear = currentDate.getYear();
+
+                incrementLoginCount(currentYear, currentMonth);
+
                 return "redirect:/";
             } else {
                 model.addAttribute("error", "Zły login lub hasło");
@@ -110,7 +157,8 @@ public class ControllerClass<Map> {
     public String post(HttpServletRequest request, @ModelAttribute("posts") Posts post, @RequestParam("files") List<MultipartFile> files, ModelMap model) {
         if (request.getMethod().equals("POST")) {
             Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
-            Timestamp timestamp = Timestamp.from(now);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
+            String formattedTimestamp = formatter.format(now);
 
             String sql = "SELECT MAX(ID) FROM posts";
             Long lastPostId = jdbcTemplate.queryForObject(sql, Long.class);
@@ -154,7 +202,7 @@ public class ControllerClass<Map> {
             String filesCSV = String.join(",", fileUrls);
 
             sql = "INSERT INTO posts (username, title, description, show_desc, gallery_link, files_path, thumbnail_url, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-            int inserted = jdbcTemplate.update(sql, request.getSession().getAttribute("user"), post.getTitle(), post.getDescription(), post.getShow_desc(), post.getGallery_link(), filesCSV, thumbnailUrl, timestamp);
+            int inserted = jdbcTemplate.update(sql, request.getSession().getAttribute("user"), post.getTitle(), post.getDescription(), post.getShow_desc(), post.getGallery_link(), filesCSV, thumbnailUrl, formattedTimestamp);
             if (inserted == 0) {
                 model.addAttribute("error", "Nie udało się dodać posta.");
             }
@@ -170,9 +218,11 @@ public class ControllerClass<Map> {
     {
         if (request.getMethod().equals("POST")) {
             Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
-            Timestamp timestamp = Timestamp.from(now);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
+            String formattedTimestamp = formatter.format(now);
+
             String sql = "INSERT INTO comments (post_id, comment_content, user, created_at) VALUES (?, ?, ?, ?)";
-            int inserted = jdbcTemplate.update(sql, postId, commentContent, request.getSession().getAttribute("user"), timestamp);
+            int inserted = jdbcTemplate.update(sql, postId, commentContent, request.getSession().getAttribute("user"), formattedTimestamp);
             if (inserted == 0)
             {
                 model.addAttribute("error", "Nie udało się dodać komentarza.");
@@ -271,4 +321,59 @@ public class ControllerClass<Map> {
         }
         return "redirect:/";
     }
+
+    @RequestMapping(value="/edit/{id}")
+    public String editPost(@PathVariable("id") Long id, @ModelAttribute Posts post) {
+        postService.updatePost(id, post);
+        return "redirect:/";
+    }
+
+    @RequestMapping(value = "/statistics", method = RequestMethod.GET)
+    @ResponseBody
+    public void statistics(HttpServletResponse response) throws IOException {
+
+        response.setContentType("application/pdf");
+        response.setHeader("Content-Disposition", "attachment; filename=\"statystyki_logowania.pdf\"");
+
+        PdfWriter pdfWriter = new PdfWriter(response.getOutputStream());
+        Document document = new Document(new com.itextpdf.kernel.pdf.PdfDocument(pdfWriter));
+
+        var font = PdfFontFactory.createFont(StandardFonts.HELVETICA);
+
+        document.add(new Paragraph("Statystyki logowania w ostatnich 3 miesiacach").setFont(font).setBold());
+
+        List<LoginStatistics> statistics = loginStatisticsRepository.findLastThreeMonths();
+
+        float[] pointColumnWidths = {150F, 150F, 150F};
+        Table table = new Table(pointColumnWidths);
+
+        table.addHeaderCell("Rok");
+        table.addHeaderCell("Miesiac");
+        table.addHeaderCell("Liczba logowan");
+
+        for (LoginStatistics stat : statistics) {
+            table.addCell(String.valueOf(stat.getYear()));
+            table.addCell(String.valueOf(stat.getMonth()));
+            table.addCell(String.valueOf(stat.getLoginCount()));
+        }
+
+        document.add(table);
+
+        document.close();
+    }
+    @RestController
+    @RequestMapping("/api/likes")
+    public static class LikeController {
+        @Autowired
+        private LikesService likesService;
+        @PostMapping("/toggle")
+        public LikeResponse toggleLike(final HttpServletRequest request, @RequestParam Long postId) {
+            String username = (String) request.getSession().getAttribute("user");
+            boolean liked = likesService.toggleLike(username, postId);
+            int likeCount = likesService.getLikeCount(postId);
+            return new LikeResponse(liked, likeCount);
+        }
+    }
+
+
 }
