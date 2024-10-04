@@ -33,8 +33,6 @@ body {
     border-radius: 8px;
     width: 300px;
     text-align: center;
-    -webkit-box-shadow: 0px 0px 32px -20px rgba(66, 68, 90, 1);
-    -moz-box-shadow: 0px 0px 32px -20px rgba(66, 68, 90, 1);
     box-shadow: 0px 0px 32px -20px rgba(66, 68, 90, 1);
 }
 
@@ -64,8 +62,6 @@ body {
 
 .input-group input:focus {
     outline: none;
-    -webkit-box-shadow: inset 8px 8px 24px -24px rgba(66, 68, 90, 1);
-    -moz-box-shadow: inset 8px 8px 24px -24px rgba(66, 68, 90, 1);
     box-shadow: inset 8px 8px 24px -24px rgba(66, 68, 90, 1);
 }
 
@@ -87,4 +83,39 @@ button:hover {
 
 button:focus {
     outline: none;
+}
+
+@media (max-width: 768px) {
+    body {
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 0;
+        margin: 0;
+    }
+
+    .login-container {
+        width: 70vw;
+        height: 30vh;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        box-shadow: 0px 0px 32px -20px rgba(66, 68, 90, 1);
+        padding: 20px;
+        background-color: #f7f3e9;
+    }
+
+    .input-group {
+        width: 98.5%;
+    }
+
+    .input-group input {
+        width: 98.5%;
+    }
+
+    button {
+        width: 100%;
+    }
 }
