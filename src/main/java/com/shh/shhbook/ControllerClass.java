@@ -28,6 +28,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
@@ -200,11 +202,20 @@ public class ControllerClass {
             }
 
             String filesCSV = String.join(",", fileUrls);
+            try {
+                sql = "INSERT INTO posts (username, title, description, show_desc, gallery_link, files_path, thumbnail_url, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                int inserted = jdbcTemplate.update(sql, request.getSession().getAttribute("user"), post.getTitle(), post.getDescription(), post.getShow_desc(), post.getGallery_link(), filesCSV, thumbnailUrl, formattedTimestamp);
+                if (inserted == 0) {
+                    model.addAttribute("error", "Nie udało się dodać posta.");
+                }
+            } catch (Exception e) {
+                StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw);
+                e.printStackTrace(pw);
+                String stackTrace = sw.toString();
 
-            sql = "INSERT INTO posts (username, title, description, show_desc, gallery_link, files_path, thumbnail_url, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-            int inserted = jdbcTemplate.update(sql, request.getSession().getAttribute("user"), post.getTitle(), post.getDescription(), post.getShow_desc(), post.getGallery_link(), filesCSV, thumbnailUrl, formattedTimestamp);
-            if (inserted == 0) {
-                model.addAttribute("error", "Nie udało się dodać posta.");
+                String errorMessage = "<html><body><h2>Blad przy dodawaniu posta:</h2><pre>" + stackTrace + "</pre></body></html>";
+                return String.valueOf(new ResponseEntity<>(errorMessage, HttpStatus.INTERNAL_SERVER_ERROR));
             }
         }
         return "redirect:/";

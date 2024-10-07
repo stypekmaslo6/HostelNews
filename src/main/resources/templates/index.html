@@ -128,7 +128,7 @@
             <div class="post-header">
                 <h1 class="post-user" th:text="${post.username}"></h1>
                 <h2 th:text="${post.title}"></h2>
-                <span class="post-timestamp" th:text="${post.createdAt}"></span>
+                <span class="post-timestamp" th:text="${#strings.arraySplit(post.createdAt, '.')[0]}"></span>
             </div>
             <!-- To co ma w sobie ogloszenie -->
             <div class="post-description" th:if="${post.show_desc != null}">
@@ -182,7 +182,7 @@
                 <div th:each="comment : ${post.comments}" class="comment">
                     <div class="comment-header">
                         <h1 class="comment-user" th:text="${comment.user}"></h1>
-                        <span class="comment-timestamp" th:text="${comment.created_at}"></span>
+                        <span class="comment-timestamp" th:text="${#strings.arraySplit(comment.created_at, '.')[0]}"></span>
                     </div>
                     <p th:text="${comment.comment_content}"></p>
                 </div>
