@@ -23,10 +23,7 @@ body {
 }
 
 .background-overlay {
-    background-image: url('https://i.ibb.co/YDx5781/smart-removebg-preview.png');
-    background-size: 400px 200px;
-    background-position: center;
-    background-repeat: space;
+    /*background-image: url('https://i.ibb.co/YDx5781/smart-removebg-preview.png');*/
     opacity: 0.2;
     position: fixed;
     top: 0;
@@ -44,14 +41,14 @@ hr {
 }
 
 .head-container {
-    background-color: #f7f3e9;
+    background-color: #ffffff;
     position: relative;
     top: 0;
     width: 100vw;
     height: 10vh;
     box-shadow: 0 0 24px 0 rgba(66, 68, 90, 1);
     display: flex;
-    justify-content: flex-start;
+    justify-content: center;
     align-items: center;
     padding: 10px 20px;
 }
@@ -78,7 +75,7 @@ button {
     padding: 10px;
     border: none;
     border-radius: 4px;
-    background-color: #f38a3a;
+    background-color: #fc6505;
     color: #fff;
     font-size: 16px;
     cursor: pointer;
@@ -86,7 +83,7 @@ button {
 }
 
 button:hover {
-    background-color: #ed7e1b;
+    background-color: #f57d1b;
 }
 
 button:focus {
@@ -138,7 +135,7 @@ button:focus {
     padding: 10px;
     border: none;
     border-radius: 4px;
-    background-color: #f38a3a;
+    background-color: #fc6505;
     color: #fff;
     font-size: 16px;
     cursor: pointer;
@@ -146,7 +143,7 @@ button:focus {
 }
 
 .gallery-link button:hover {
-    background-color: #ed7e1b;
+    background-color: #f57d1b;
 }
 
 .post textarea {
@@ -295,11 +292,13 @@ input[type="file"]::file-selector-button:active {
     padding-bottom: 10px;
     margin-bottom: 10px;
     margin-top: 10px;
+    position: relative;
 }
 
 .post-header h1 {
     margin: 0;
     flex: 1;
+    text-align: center;
 }
 
 .post-header h2 {
@@ -316,15 +315,21 @@ input[type="file"]::file-selector-button:active {
 
 .post-user {
     margin: 0;
-    font-size: 20px;
-    font-weight: bold;
-    text-transform: uppercase;
+    font-size: 1em;
+}
+
+.post-info {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .post-timestamp {
     margin: 0;
     font-size: 0.9em;
-    color: grey;
+    color: black;
 }
 
 .link-button {
@@ -368,6 +373,13 @@ input[type="file"]::file-selector-button:active {
     border: 1px solid #ccc;
     border-radius: 4px;
     box-sizing: border-box;
+    transition: box-shadow 0.3s ease-in-out;
+}
+
+.popup-content input[type="text"]:focus,
+.popup-content textarea:focus {
+        outline: none;
+        box-shadow: inset 8px 8px 24px -24px rgba(66, 68, 90, 1);
 }
 
 .popup-content textarea {
@@ -398,7 +410,7 @@ input[type="file"]::file-selector-button:active {
     padding: 10px 20px;
     border: none;
     border-radius: 4px;
-    background-color: #f38a3a;
+    background-color: #fc6505;
     color: #fff;
     font-size: 16px;
     cursor: pointer;
@@ -406,7 +418,7 @@ input[type="file"]::file-selector-button:active {
 }
 
 .popup-content button[type="submit"]:hover {
-    background-color: #ed7e1b;
+    background-color: #f57d1b;
 }
 
 .popup-content button[type="submit"]:focus {
@@ -433,6 +445,7 @@ input[type="file"]::file-selector-button:active {
     display: flex;
     flex-direction: column;
     align-items: center;
+    position: relative;
 }
 
 @media (max-width: 2500px) {
@@ -648,7 +661,7 @@ input[type="file"]::file-selector-button:active {
     padding: 10px;
     border: none;
     border-radius: 4px;
-    background-color: #f38a3a;
+    background-color: #fc6505;
     color: #fff;
     font-size: 16px;
     cursor: pointer;
@@ -656,7 +669,7 @@ input[type="file"]::file-selector-button:active {
 }
 
 .comment-form button:hover {
-    background-color: #ed7e1b;
+    background-color: #f57d1b;
 }
 
 .comment-form button {
@@ -664,7 +677,7 @@ input[type="file"]::file-selector-button:active {
     padding: 10px;
     border: none;
     border-radius: 4px;
-    background-color: #f38a3a;
+    background-color: #fc6505;
     color: #fff;
     font-size: 16px;
     cursor: pointer;
@@ -754,7 +767,7 @@ input[type="file"]::file-selector-button:active {
 
 .pagination-link {
     padding: 10px 20px;
-    background-color: #f38a3a;
+    background-color: #fc6505;
     color: white;
     text-decoration: none;
     font-size: 16px;
@@ -763,7 +776,7 @@ input[type="file"]::file-selector-button:active {
 }
 
 .pagination-link:hover {
-    background-color: #ed7e1b;
+    background-color: #f57d1b;
 }
 
 .pagination-link:disabled {
@@ -774,4 +787,9 @@ input[type="file"]::file-selector-button:active {
 .pagination-link:focus {
     outline: none;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.column {
+    display: flex;
+    flex-direction: column;
 }

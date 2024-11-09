@@ -15,6 +15,7 @@ import com.shh.shhbook.repository.LikesRepository;
 import com.shh.shhbook.repository.LoginStatisticsRepository;
 import com.shh.shhbook.repository.PostsRepository;
 import com.shh.shhbook.model.Users;
+import com.shh.shhbook.repository.UsersRepository;
 import com.shh.shhbook.response.LikeResponse;
 import com.shh.shhbook.service.LikesService;
 import com.shh.shhbook.service.PostService;
@@ -66,6 +67,8 @@ public class ControllerClass {
     @Autowired
     private LikesRepository likesRepository;
     @Autowired
+    private UsersRepository usersRepository;
+    @Autowired
     private LoginStatisticsRepository loginStatisticsRepository;
     private void incrementLoginCount(int year, int month) {
         String checkSql = "SELECT COUNT(*) FROM login_statistics WHERE year = ? AND month = ?";
@@ -86,11 +89,11 @@ public class ControllerClass {
                           ModelMap model,
                           @RequestParam(value = "page", defaultValue = "0") int page,
                           @RequestParam(value = "size", defaultValue = "12") int size) {
-
+        List<Users> users = usersRepository.findAll();
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         model.addAttribute("page", page);
         model.addAttribute("size", size);
-
+        model.addAttribute("users", users);
         if (request.getRequestURI().equals("/search") && request.getMethod().equals("GET")) {
             String searchField = request.getParameter("search_field");
             Page<Posts> postsPage = postsRepository.findByDescriptionContainingOrTitleContaining(searchField, searchField, pageable);

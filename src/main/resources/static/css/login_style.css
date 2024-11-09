@@ -14,10 +14,7 @@ body {
 }
 
 .background-overlay {
-    background-image: url('https://i.ibb.co/YDx5781/smart-removebg-preview.png');
-    background-size: 400px 200px;
-    background-position: center;
-    background-repeat: space;
+    /*background-image: url('https://i.ibb.co/YDx5781/smart-removebg-preview.png');*/
     opacity: 0.2;
     position: fixed;
     top: 0;
@@ -27,8 +24,15 @@ body {
     z-index: -1;
 }
 
+.login-container img {
+    margin-left: 3px;
+    height: 100%;
+    width: 100%;
+    object-fit: contain;
+}
+
 .login-container {
-    background-color: #f7f3e9;
+    background-color: #fff;
     padding: 20px;
     border-radius: 8px;
     width: 300px;
@@ -70,7 +74,7 @@ button {
     padding: 10px;
     border: none;
     border-radius: 4px;
-    background-color: #f38a3a;
+    background-color: #fc6505;
     color: #fff;
     font-size: 16px;
     cursor: pointer;
@@ -78,7 +82,7 @@ button {
 }
 
 button:hover {
-    background-color: #ed7e1b;
+    background-color: #f57d1b;
 }
 
 button:focus {

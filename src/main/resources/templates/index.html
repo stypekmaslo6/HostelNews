@@ -93,17 +93,53 @@
                 document.getElementById('comment-button-' + postId).innerText = "Ukryj komentarze";
             }
         }
+
+        function openAddUserPopup() {
+            var popup = document.getElementById('addUserPopup');
+            popup.style.visibility = "visible"
+            popup.style.opacity = '1';
+        }
+
+        function closeAddPopup() {
+            var popup = document.getElementById("addUserPopup");
+            popup.style.visibility = "hidden";
+            popup.style.opacity = '0';
+        }
+
+        function openDeleteUserPopup() {
+            var popup = document.getElementById('deleteUserPopup');
+            popup.style.visibility = "visible"
+            popup.style.opacity = '1';
+        }
+
+        function closeDeletePopup() {
+            var popup = document.getElementById("deleteUserPopup");
+            popup.style.visibility = "hidden";
+            popup.style.opacity = '0';
+        }
     </script>
 </head>
 <body>
 
     <div class="head-container">
-        <h1>Smart News</h1>
+        <a href="/"><img src='https://i.ibb.co/YDx5781/smart-removebg-preview.png'></a>
         <div class="buttons-container">
             <form th:action="@{/search}">
                 <label>
                     <input name="search_field" autocomplete="off" placeholder="Wyszukaj post...">
                 </label>
+            </form>
+
+            <form th:if="${can_post == 1}">
+                <button type="button" onclick="openAddUserPopup()">Dodaj użytkownika</button>
+            </form>
+
+            <form th:if="${can_post == 1}">
+                <button type="button" onclick="openDeleteUserPopup()">Usuń użytkownika</button>
+            </form>
+
+            <form th:if="${can_post == 1}">
+                <button type="submit">Wygeneruj dane użytkowników</button>
             </form>
 
             <form th:if="${can_post == 1}" th:action="@{/statistics}">
@@ -126,9 +162,11 @@
         <div th:each="post : ${db_posts}" class="post">
             <!-- Naglowek -->
             <div class="post-header">
-                <h1 class="post-user" th:text="${post.username}"></h1>
-                <h2 th:text="${post.title}"></h2>
-                <span class="post-timestamp" th:text="${#strings.arraySplit(post.createdAt, '.')[0]}"></span>
+                <h1 th:text="${post.title}"></h1>
+                <div class="post-info">
+                    <span class="post-timestamp" th:text="${#dates.format(post.createdAt, 'dd MMMM yyyy')}"></span>
+                    <span class="post-user" th:text="'Dodane przez: ' + ${#strings.toUpperCase(post.username)}"></span>
+                </div>
             </div>
             <!-- To co ma w sobie ogloszenie -->
             <div class="post-description" th:if="${post.show_desc != null}">
@@ -243,5 +281,32 @@
         </div>
     </div>
 
+    <!-- Add User Popup -->
+    <div id="addUserPopup" class="popup">
+        <div class="popup-content">
+            <h2>Dodaj użytkownika</h2>
+            <form th:action="@{/addUser}" method="post" class="column">
+                <input placeholder="Nazwa użytkownika" type="text" id="username" name="username" autocomplete="off">
+                <button type="submit">Dodaj</button>
+                <button type="button" onclick="closeAddPopup()">Zamknij</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete User Popup -->
+    <div id="deleteUserPopup" class="popup">
+        <div class="popup-content">
+            <h2 style="margin-bottom: 10px;">Usuń użytkownika</h2>
+            <form th:action="@{/deleteUser}" method="post">
+                <label for="userSelect">Wybierz użytkownika:</label>
+                <select id="userSelect" name="username" required style="margin-bottom: 10px;">
+                    <option th:each="user : ${users}" th:value="${user.username}" th:text="${user.username}"></option>
+                </select>
+                <br>
+                <button type="submit">Usuń</button>
+                <button type="button" onclick="closeDeletePopup()">Zamknij</button>
+            </form>
+        </div>
+    </div>
 </body>
 </html>
