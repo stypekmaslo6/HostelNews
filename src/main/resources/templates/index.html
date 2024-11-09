@@ -57,10 +57,15 @@
         }
 
         window.onclick = function(event) {
-            var createPostPopup = document.getElementById('post');
-            if (event.target === createPostPopup) {
-                closePopup();
+            if (event.target.classList.contains('popup')) {
+                closeWPopup(event.target.id);
             }
+        };
+
+        function closeWPopup(popupId) {
+            var popup = document.getElementById(popupId);
+            popup.style.visibility = "hidden";
+            popup.style.opacity = '0';
         }
 
         document.addEventListener("DOMContentLoaded", function() {
@@ -117,12 +122,24 @@
             popup.style.visibility = "hidden";
             popup.style.opacity = '0';
         }
+
+        function openChangePasswordPopup() {
+            var popup = document.getElementById('changePasswordPopup');
+            popup.style.visibility = "visible"
+            popup.style.opacity = '1';
+        }
+
+        function closeChangePasswordPopup() {
+            var popup = document.getElementById("changePasswordPopup");
+            popup.style.visibility = "hidden";
+            popup.style.opacity = '0';
+        }
     </script>
 </head>
 <body>
 
     <div class="head-container">
-        <a href="/"><img src='https://i.ibb.co/YDx5781/smart-removebg-preview.png'></a>
+        <img src='https://i.ibb.co/YDx5781/smart-removebg-preview.png'>
         <div class="buttons-container">
             <form th:action="@{/search}">
                 <label>
@@ -138,7 +155,7 @@
                 <button type="button" onclick="openDeleteUserPopup()">Usuń użytkownika</button>
             </form>
 
-            <form th:if="${can_post == 1}">
+            <form th:if="${can_post == 1}" th:action="@{/usernames}">
                 <button type="submit">Wygeneruj dane użytkowników</button>
             </form>
 
@@ -150,6 +167,10 @@
                 <button type="button" onclick="openPopup()">Wstaw post</button>
             </form>
 
+            <form>
+                <button type="button" onclick="openChangePasswordPopup()">Zmień hasło</button>
+            </form>
+
             <form th:action="@{/logout}">
                 <button type="submit">Wyloguj się</button>
             </form>
@@ -157,6 +178,14 @@
     </div>
 
     <div class="background-overlay"></div>
+
+    <div th:if="${error}" style="color: red; background-color: #f8d7da; padding: 10px; border: 1px solid #f5c6cb; border-radius: 5px; display: flex; justify-content: center; align-items: center;">
+        <span th:text="${error}" style="text-align: center;"></span>
+    </div>
+
+    <div th:if="${success}" style="color: green; background-color: #d4edda; padding: 10px; border: 1px solid #c3e6cb; border-radius: 5px; display: flex; justify-content: center; align-items: center;">
+        <span th:text="${success}" style="text-align: center;"></span>
+    </div>
 
     <div class="posts-area">
         <div th:each="post : ${db_posts}" class="post">
@@ -174,7 +203,7 @@
             </div>
 
             <div th:each="file : ${#strings.arraySplit(post.files_path, ',')}">
-                <img th:if="${file.endsWith('.pdf')}" th:src="${post.thumbnail_url}" alt="PDF Thumbnail">
+                <img th:if="${file.toLowerCase().endsWith('.pdf')}" th:src="${post.thumbnail_url}" alt="PDF Thumbnail">
                 <img th:if="${file.endsWith('.jpg') || file.endsWith('.png')}" th:src="${file}" alt="Image">
             </div>
 
@@ -238,6 +267,7 @@
         </div>
     </div>
 
+    <!-- Stronicowanie -->
     <div class="pagination-container">
         <ul class="pagination-list">
             <li th:if="${page > 0}">
@@ -250,7 +280,7 @@
     </div>
 
 
-
+    <!-- Utwórz post -->
     <div class="popup" id="post">
         <div class="popup-content">
             <h2>Utwórz ogłoszenie</h2>
@@ -266,6 +296,8 @@
         </div>
     </div>
 
+
+    <!-- Edytuj post -->
     <div class="popup" id="edit_post">
         <div class="popup-content">
             <h2>Edytuj ogłoszenie</h2>
@@ -281,11 +313,11 @@
         </div>
     </div>
 
-    <!-- Add User Popup -->
+    <!-- Dodaj użytkownika -->
     <div id="addUserPopup" class="popup">
         <div class="popup-content">
             <h2>Dodaj użytkownika</h2>
-            <form th:action="@{/addUser}" method="post" class="column">
+            <form th:action="@{/addUser}" method="post">
                 <input placeholder="Nazwa użytkownika" type="text" id="username" name="username" autocomplete="off">
                 <button type="submit">Dodaj</button>
                 <button type="button" onclick="closeAddPopup()">Zamknij</button>
@@ -293,11 +325,12 @@
         </div>
     </div>
 
-    <!-- Delete User Popup -->
+    <!-- Usuń użytkownika -->
     <div id="deleteUserPopup" class="popup">
         <div class="popup-content">
             <h2 style="margin-bottom: 10px;">Usuń użytkownika</h2>
             <form th:action="@{/deleteUser}" method="post">
+
                 <label for="userSelect">Wybierz użytkownika:</label>
                 <select id="userSelect" name="username" required style="margin-bottom: 10px;">
                     <option th:each="user : ${users}" th:value="${user.username}" th:text="${user.username}"></option>
@@ -308,5 +341,20 @@
             </form>
         </div>
     </div>
+
+    <!-- Zmiana hasła -->
+    <div id="changePasswordPopup" class="popup">
+        <div class="popup-content">
+            <h2>Zmiana hasła</h2>
+            <form th:action="@{/changePassword}" method="post">
+                <input placeholder="Aktualne hasło" type="password" id="currentPassword" name="currentPassword" autocomplete="off" required>
+                <input placeholder="Nowe hasło" type="password" id="newPassword" name="newPassword" autocomplete="off" required>
+                <input placeholder="Powtórz nowe hasło" type="password" id="confirmPassword" name="confirmPassword" autocomplete="off" required>
+                <button type="submit">Zmień hasło</button>
+                <button type="button" onclick="closeChangePasswordPopup()">Zamknij</button>
+            </form>
+        </div>
+    </div>
+
 </body>
 </html>

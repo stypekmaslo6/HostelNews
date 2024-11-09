@@ -19,6 +19,7 @@ import com.shh.shhbook.repository.UsersRepository;
 import com.shh.shhbook.response.LikeResponse;
 import com.shh.shhbook.service.LikesService;
 import com.shh.shhbook.service.PostService;
+import com.shh.shhbook.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -50,6 +51,7 @@ import java.util.List;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.PDFRenderer;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import javax.imageio.ImageIO;
 
@@ -190,7 +192,7 @@ public class ControllerClass {
                         fileUrls.add(fileUrl);
 
                         if (thumbnailUrl == null) {
-                            if (fileName.toLowerCase().endsWith(".pdf")) {
+                            if (fileName.endsWith(".pdf") || fileName.endsWith(".PDF")) {
                                 thumbnailUrl = createPdfThumbnail(fileKey);
                             } else {
                                 thumbnailUrl = fileUrl;
@@ -277,15 +279,17 @@ public class ControllerClass {
         try {
             S3Object s3Object = amazonS3.getObject(new GetObjectRequest(bucketName, fileKey));
             InputStream inputStream = s3Object.getObjectContent();
-
+            String thumbnailKey;
             List<BufferedImage> images = convertPdfToImages(inputStream);
             BufferedImage combinedImage = combineImages(images);
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             ImageIO.write(combinedImage, "jpg", baos);
             byte[] imageBytes = baos.toByteArray();
-
-            String thumbnailKey = fileKey.replace(".pdf", "_thumbnail.jpg");
+            if (fileKey.endsWith(".PDF"))
+                thumbnailKey = fileKey.replace(".PDF", "_thumbnail.jpg");
+            else
+                thumbnailKey = fileKey.replace(".pdf", "_thumbnail.jpg");
             ObjectMetadata metadata = new ObjectMetadata();
             metadata.setContentLength(imageBytes.length);
             metadata.setContentType("image/jpeg");
@@ -388,6 +392,82 @@ public class ControllerClass {
             return new LikeResponse(liked, likeCount);
         }
     }
+    @Autowired
+    private UserService userService;
+    @PostMapping("/addUser")
+    public String addUser(@RequestParam("username") String username, RedirectAttributes redirectAttributes) {
+        if (userService.usernameExists(username))
+        {
+            redirectAttributes.addFlashAttribute("error", "Użytkownik o takiej nazwie już istnieje!");
+            return "redirect:/";
+        }
+        userService.addUser(username);
+        return "redirect:/";
+    }
 
+    // Delete a user
+    @PostMapping("/deleteUser")
+    public String deleteUser(@RequestParam("username") String username) {
+        userService.deleteUser(username);
+        return "redirect:/";
+    }
 
+    @RequestMapping(value = "/usernames", method = RequestMethod.GET)
+    @ResponseBody
+    public void generateUsernamesPdf(HttpServletResponse response) throws IOException {
+
+        response.setContentType("application/pdf");
+        response.setHeader("Content-Disposition", "attachment; filename=\"uzytkownicy_w_bazie.pdf\"");
+
+        PdfWriter pdfWriter = new PdfWriter(response.getOutputStream());
+        Document document = new Document(new com.itextpdf.kernel.pdf.PdfDocument(pdfWriter));
+
+        var font = PdfFontFactory.createFont(StandardFonts.HELVETICA);
+
+        document.add(new Paragraph("Lista uzytkowników w bazie danych").setFont(font).setBold());
+
+        List<Users> usersList = usersRepository.findAll();
+
+        float[] pointColumnWidths = {200F};
+        Table table = new Table(pointColumnWidths);
+
+        for (Users user : usersList) {
+            table.addCell(user.getUsername());
+        }
+
+        document.add(table);
+
+        document.close();
+    }
+
+    @RequestMapping(value = "/changePassword", method = RequestMethod.POST)
+    public String changePassword(@RequestParam("currentPassword") String currentPassword,
+                                 @RequestParam("newPassword") String newPassword,
+                                 @RequestParam("confirmPassword") String confirmPassword,
+                                 HttpServletRequest request, RedirectAttributes redirectAttributes) {
+        HttpSession session = request.getSession(false);
+        String username = (String) session.getAttribute("user");
+
+        if (username == null) {
+            redirectAttributes.addFlashAttribute("error", "Nie jesteś zalogowany.");
+            return "redirect:/login";
+        }
+
+        Users user = usersRepository.findByUsername(username);
+        if (user == null || !user.getPassword().equals(currentPassword)) {
+            redirectAttributes.addFlashAttribute("error", "Aktualne hasło jest niepoprawne.");
+            return "redirect:/";
+        }
+
+        if (!newPassword.equals(confirmPassword)) {
+            redirectAttributes.addFlashAttribute("error", "Nowe hasła nie są zgodne.");
+            return "redirect:/";
+        }
+
+        user.setPassword(newPassword);
+        usersRepository.save(user);
+
+        redirectAttributes.addFlashAttribute("success", "Hasło zostało zmienione pomyślnie.");
+        return "redirect:/";
+    }
 }
