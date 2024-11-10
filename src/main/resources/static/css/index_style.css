@@ -481,22 +481,34 @@ input[type="file"]::file-selector-button:active {
     text-align: center;
 }
 
+.comment-creator {
+    align-items: stretch;
+    display: flex;
+    gap: 10px;
+}
+
 .comment-creator form {
     width: 100%;
 }
 
 .comment-creator textarea {
+    flex: 1;
     width: calc(100% - 20px);
     padding: 10px;
     margin: 10px 0;
     border: 1px solid #ccc;
     border-radius: 4px;
     box-sizing: border-box;
+    resize: vertical;
 }
 
 .comment-creator button {
     width: 100%;
     margin-top: 10px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .comments-container {

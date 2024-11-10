@@ -4,6 +4,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <link rel="stylesheet" th:href="@{css//index_style.css}">
+    <link rel="icon" href="https://i.ibb.co/gTMyZsH/icon.png">
     <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap" th:href="@{css//index_style.css}">
     <title>Smart News</title>
     <script>
@@ -139,7 +140,7 @@
 <body>
 
     <div class="head-container">
-        <img src='https://i.ibb.co/YDx5781/smart-removebg-preview.png'>
+        <a style='margin-right: 20px' href="/"><img src='https://www.shh.travel/images/xlogo.png.pagespeed.ic.3yvJg84xGc.webp'></a>
         <div class="buttons-container">
             <form th:action="@{/search}">
                 <label>
@@ -249,7 +250,7 @@
                 <div th:each="comment : ${post.comments}" class="comment">
                     <div class="comment-header">
                         <h1 class="comment-user" th:text="${comment.user}"></h1>
-                        <span class="comment-timestamp" th:text="${#strings.arraySplit(comment.created_at, '.')[0]}"></span>
+                        <span class="comment-timestamp" th:text="${#dates.format(comment.created_at, 'dd MMMM yyyy')}"></span>
                     </div>
                     <p th:text="${comment.comment_content}"></p>
                 </div>
@@ -320,7 +321,10 @@
             <form th:action="@{/addUser}" method="post">
                 <input placeholder="Nazwa użytkownika" type="text" id="username" name="username" autocomplete="off">
                 <button type="submit">Dodaj</button>
-                <button type="button" onclick="closeAddPopup()">Zamknij</button>
+                <button type="button" onclick="closeAddPopup()" style="margin-bottom: 20px;">Zamknij</button>
+                <br>
+                <label style="margin-top: 20px;">Chcesz dodać więcej użytkowników?</label>
+                <a href="https://elasticbeanstalk-eu-north-1-471112637345.s3.eu-north-1.amazonaws.com/resources/dodawanie_uzytkownikow.zip" download>Pobierz aplikację</a>
             </form>
         </div>
     </div>

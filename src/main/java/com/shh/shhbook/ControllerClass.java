@@ -126,7 +126,7 @@ public class ControllerClass {
     @RequestMapping(value = "/login", method = RequestMethod.POST)
     public String login(final HttpServletRequest request,
                         @ModelAttribute("users") Users user,
-                        ModelMap model) {
+                        ModelMap model, RedirectAttributes redirectAttributes) {
         if (request.getMethod().equals("POST")) {
             String sql = "SELECT COUNT(*) FROM users WHERE username = ? AND password = ?";
             int count = jdbcTemplate.queryForObject(sql, new Object[]{user.getUsername(), user.getPassword()}, Integer.class);
@@ -143,7 +143,7 @@ public class ControllerClass {
 
                 return "redirect:/";
             } else {
-                model.addAttribute("error", "Zły login lub hasło");
+                model.addAttribute("error", "Niepoprawny login lub hasło");
                 return "login";
             }
         }

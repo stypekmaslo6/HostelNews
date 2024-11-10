@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" th:href="@{css//login_style.css}">
+    <link rel="icon" href="https://i.ibb.co/gTMyZsH/icon.png">
     <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap" th:href="@{css//login_style.css}">
     <title>Login</title>
 </head>
@@ -20,6 +21,9 @@
                 <input type="password" id="password" name="password" required autocomplete="off">
             </div>
             <button type="submit">Zaloguj</button>
+            <div th:if="${error}" style="color: red; background-color: #f8d7da; padding: 10px; border: 1px solid #f5c6cb; border-radius: 5px; display: flex; justify-content: center; align-items: center;">
+                <span th:text="${error}" style="text-align: center;"></span>
+            </div>
         </form>
     </div>
 
