@@ -8,7 +8,6 @@ import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.*;
-import com.shh.shhbook.model.Likes;
 import com.shh.shhbook.model.LoginStatistics;
 import com.shh.shhbook.model.Posts;
 import com.shh.shhbook.repository.LikesRepository;

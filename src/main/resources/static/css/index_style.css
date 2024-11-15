@@ -45,10 +45,10 @@ hr {
     position: relative;
     top: 0;
     width: 100vw;
-    height: 10vh;
+    max-height: 25vw;
     box-shadow: 0 0 24px 0 rgba(66, 68, 90, 1);
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
     padding: 10px 20px;
 }
@@ -64,7 +64,14 @@ hr {
 }
 
 .buttons-container {
-    display: inline-block;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.buttons-container button {
+    width: auto;
 }
 
 .buttons-container form {
